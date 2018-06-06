@@ -1,0 +1,16 @@
+muppets1.domain:
+  # override ignored mounts
+  ignored:
+    - /tmp
+  # override thresholds
+  thresholds:
+    default:
+      warning: 80
+      notice: 70
+      info: 60
+    /srv:
+      warning: 50
+muppets2.domain:
+  # override ignored mounts
+  # leave empty to ignore none
+  ignored: {}

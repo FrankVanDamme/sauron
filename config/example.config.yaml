@@ -1,0 +1,34 @@
+dirs:
+  # directory where log files are kept
+  log: "/home/kermit/sauron2.d/logs"
+  # directory where tmp files are kept
+  tmp: "/home/kermit/sauron2.d/tmp"
+# send mail
+email:
+  enabled: true
+# mounts which are ignored
+# leave empty to ignore none
+ignored:
+  - /var
+  - /tmp
+# 0 = on change only
+# 1 = always send a mail
+# 86400 seconds is every day
+# 14400 = every 4 hours
+mail_timeout:
+ info: 0
+ notice: 0
+ warning: 86400
+ critical: 14400
+notify:
+  - kermit@muppets.domain
+ssh_timeout: 15
+thresholds:
+  default:
+    critical: 97
+    warning: 94
+    notice: 90
+    info: 87
+  # set specific thresholds
+  /:
+    info: 50
