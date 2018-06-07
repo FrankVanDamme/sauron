@@ -11,15 +11,6 @@ email:
 ignored:
   - /var
   - /tmp
-# 0 = on change only
-# 1 = always send a mail
-# 86400 seconds is every day
-# 14400 = every 4 hours
-mail_timeout:
- info: 0
- notice: 0
- warning: 86400
- critical: 14400
 notify:
   - kermit@muppets.domain
 ssh_timeout: 15

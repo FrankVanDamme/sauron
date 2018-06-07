@@ -229,7 +229,8 @@ for service, service_config in session['services'].items():
     # Ports are handled in ~/.ssh/config since we use OpenSSH
     COMMAND = "df -h | grep -E '^/dev' | tr -s ' ' "
 
-    ssh = subprocess.Popen(["ssh", '-o ConnectTimeout=10', "%s" % service, COMMAND], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    timeout = str(session['global_config']['ssh_timeout'])
+    ssh = subprocess.Popen(["ssh", '-o BatchMode=yes', '-o ConnectTimeout='+timeout, "%s" % service, COMMAND], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     result = []
     output = ssh.stdout.readlines()
