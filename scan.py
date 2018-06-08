@@ -227,7 +227,7 @@ for service, service_config in session['services'].items():
     #         print('Network connection failed! Cannot resolve {}. Error: "{}"...'.format(domain, e.args[1]))
     #         exit(1)
     if debugmode:
-        print('Connect to service {}'.format(service))
+        print('+ + Connect to service {} + +'.format(service))
 
     # Ports are handled in ~/.ssh/config since we use OpenSSH
     COMMAND = "df -h | grep -E '^/dev' | tr -s ' ' "
@@ -242,7 +242,8 @@ for service, service_config in session['services'].items():
 
     if len(result) == 0:
         error = ssh.stderr.readlines()
-        print('Failed! Write connection error for {} to log file... {}'.format(service, services_log_file_path))
+        if debugmode:
+            print('Failed! Write connection error for {} to log file... {}'.format(service, services_log_file_path))
         services_log_file = open(services_log_file_path, 'a')
         line = "{};{};error;{} {}\n".format(datetime_stamp, session['id'], service, error[0].decode().rstrip())
         failed_connections.append(line)
@@ -261,7 +262,8 @@ for service, service_config in session['services'].items():
         print(session['global_config']['thresholds'])
 
     for line in result:
-        # print(line)
+        if debugmode:
+            print(line)
         pieces = line.split(' ')
         mount = pieces[5].strip()
         usage = int(pieces[4].strip('%'))
