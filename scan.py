@@ -249,6 +249,7 @@ for service, service_config in session['services'].items():
         failed_connections.append(line)
         services_log_file.write(line)
         services_log_file.close()
+        bar.next()
         continue
 
     if debugmode:
