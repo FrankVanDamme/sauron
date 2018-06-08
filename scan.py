@@ -210,6 +210,9 @@ if monkey:
 number_of_services = len(session['services'].items())
 bar = Bar('Scanning...', max=number_of_services)
 
+print('Check {} services...'.format(len(session['services'].items())))
+print()
+
 # request the urls
 for service, service_config in session['services'].items():
 
@@ -239,7 +242,7 @@ for service, service_config in session['services'].items():
 
     if len(result) == 0:
         error = ssh.stderr.readlines()
-        print('Failed! Write connection error to log file... {}'.format(services_log_file_path))
+        print('Failed! Write connection error for {} to log file... {}'.format(service, services_log_file_path))
         services_log_file = open(services_log_file_path, 'a')
         line = "{};{};error;{} {}\n".format(datetime_stamp, session['id'], service, error[0].decode().rstrip())
         failed_connections.append(line)
@@ -486,7 +489,8 @@ for level, messages in warnings.items():
 if len(failed_connections):
     report.append('%%% FAILED %%%')
     for f in failed_connections:
-        report.append(f.split(';')[3])
+        report.append(f.split(';')[3].rstrip("\n"))
+    report.append('')
 
 # ignored mounts
 if len(ignored_mounts):
