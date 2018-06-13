@@ -1,4 +1,7 @@
 muppets1.domain:
+  # notify others
+  notify:
+    - piggy@muppets.domain
   # override ignored mounts
   ignored:
     - /tmp

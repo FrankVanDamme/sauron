@@ -6,6 +6,8 @@ dirs:
 # send mail
 email:
   enabled: true
+  services: true
+  server: smtp.vub.ac.be
 # mounts which are ignored
 # leave empty to ignore none
 ignored:

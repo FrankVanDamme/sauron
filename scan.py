@@ -98,7 +98,7 @@ for services_log_file_path in [args.configfile, args.servicesfile]:
 ####################################
 cli_params = {}
 cli_params['services'] = args.servicesfile
-cli_params['global_config'] = args.configfile
+cli_params['config'] = args.configfile
 
 for type, file_path in cli_params.items():
     if not os.path.isfile(file_path):
@@ -126,7 +126,7 @@ for type, file_path in cli_params.items():
 ####################################
 for type in ['log', 'tmp']:
     try:
-        dir = os.path.expanduser(session['global_config']["dirs"][type])
+        dir = os.path.expanduser(session['config']["dirs"][type])
     except:
         print('Abort! Directive dir:{} not set??'.format(type))
         exit(1)
@@ -136,8 +136,8 @@ for type in ['log', 'tmp']:
         exit(1)
 
 # set the variables
-log_dir = os.path.normpath(os.path.expanduser(session['global_config']["dirs"]["log"]))
-tmp_dir = os.path.normpath(os.path.expanduser(session['global_config']["dirs"]["tmp"]))
+log_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["log"]))
+tmp_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["tmp"]))
 
 print()
 print('{} {} ID {}'.format(app_name, app_version, session['id']))
@@ -175,12 +175,12 @@ connectivity_checked = False
 statuses = []
 
 # actual list of warnings
-warnings = {}
+hits = {}
 
 # setup warning levels
 warning_levels = ['critical', 'warning', 'notice', 'info']
 
-warning_level_max = ''
+hits_level_max = ''
 
 warning_level_weights = {}
 w = 0
@@ -198,12 +198,13 @@ failed_connections = []
 # ignored mounts
 ignored_mounts = []
 
-if monkey:
-    services = list(session['services'].keys())
-    random_service =  random.choice(services)
-    print('--> Monkey deleted service {} :)'.format(random_service))
-    session['services'].pop(random_service, None)
-    print()
+# # delete random service
+# if monkey:
+#     services = list(session['services'].keys())
+#     random_service =  random.choice(services)
+#     print('--> Monkey deleted service {} :)'.format(random_service))
+#     session['services'].pop(random_service, None)
+#     print()
 
 
 # create the progress bar
@@ -213,26 +214,19 @@ bar = Bar('Scanning...', max=number_of_services)
 print('Check {} services...'.format(len(session['services'].items())))
 print()
 
+# list of services per recipient
+configured_services_per_recipient = {}
+
 # request the urls
 for service, service_config in session['services'].items():
 
-    # # check connectivity
-    # if not connectivity_checked:
-    #     connectivity_checked = True
-    #     domain = service.split('//')[-1].split('/')[0].split('?')[0]
-    #     try:
-    #         # print('Connectivity check. Try {}... '.format(domain))
-    #         resolved = socket.gethostbyname(domain)
-    #     except OSError as e:
-    #         print('Network connection failed! Cannot resolve {}. Error: "{}"...'.format(domain, e.args[1]))
-    #         exit(1)
     if debugmode:
         print('+ + Connect to service {} + +'.format(service))
 
     # Ports are handled in ~/.ssh/config since we use OpenSSH
     COMMAND = "df -Ph | grep -E '^/dev' | tr -s ' ' "
 
-    timeout = str(session['global_config']['ssh_timeout'])
+    timeout = str(session['config']['ssh_timeout'])
     ssh = subprocess.Popen(["ssh", '-o BatchMode=yes', '-o ConnectTimeout='+timeout, "%s" % service, COMMAND], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     result = []
@@ -260,18 +254,20 @@ for service, service_config in session['services'].items():
         print('service config:')
         print(service_config)
         print('session config:')
-        print(session['global_config']['thresholds'])
+        print(session['config']['thresholds'])
 
     for line in result:
         if debugmode:
             print(line)
         pieces = line.split(' ')
         mount = pieces[5].strip()
-        usage = int(pieces[4].strip('%'))
+        # monkey mode
+        if monkey:
+            usage = random.randint(0, 100)
+        else:
+            usage = int(pieces[4].strip('%'))
 
         if debugmode:
-            print()
-            print('>>>')
             print('Checking mount {}, usage: {}'.format(mount, usage))
 
         thresholds = {}
@@ -281,7 +277,7 @@ for service, service_config in session['services'].items():
         # ignored mounts
         skip_mount = False
         # the service config overrides the global config
-        for resource in [service_config, session['global_config']]:
+        for resource in [service_config, session['config']]:
             # is there a key "ignored" and of so, does it contain the mount?
             if 'ignored' in resource:
                 # check if trailing slash
@@ -305,15 +301,15 @@ for service, service_config in session['services'].items():
         # threshold overriding
         for level in warning_levels:
             # global defaults
-            if not level in session['global_config']['thresholds']['default']:
+            if not level in session['config']['thresholds']['default']:
                 print('Must have default thresholds in global config file! Missing level {}'.format(level))
                 exit(1)
             else:
-                thresholds[level] = session['global_config']['thresholds']['default'][level]
+                thresholds[level] = session['config']['thresholds']['default'][level]
             # global override
-            if mount in session['global_config']['thresholds']:
-                if level in session['global_config']['thresholds'][mount]:
-                    thresholds[level] = session['global_config']['thresholds'][mount][level]
+            if mount in session['config']['thresholds']:
+                if level in session['config']['thresholds'][mount]:
+                    thresholds[level] = session['config']['thresholds'][mount][level]
             # service override
             if 'thresholds' in service_config:
                 if 'default' in service_config['thresholds']:
@@ -323,9 +319,6 @@ for service, service_config in session['services'].items():
                 if mount in service_config['thresholds']:
                     if level in service_config['thresholds'][mount]:
                         thresholds[level] = service_config['thresholds'][mount][level]
-
-        # print('thresholds calculated')
-        # print(thresholds)
 
         warning_level = ''
         for level in warning_levels:
@@ -338,25 +331,48 @@ for service, service_config in session['services'].items():
             warning_level = 'OK'
         else:
             # add this mount to the log
-            if level not in warnings:
-                warnings[level] = []
+            if level not in hits:
+                hits[level] = {}
             line = '{} {} {}%'.format(service, mount, usage)
-            warnings[level].append(line)
+            if service not in hits[level]:
+                hits[level][service] = []
+            hits[level][service].append(line)
             # set the maximum
-            if warning_level_max == '':
-                warning_level_max = warning_level
+            if hits_level_max == '':
+                hits_level_max = warning_level
             else:
-                if warning_level_weights[warning_level] > warning_level_weights[warning_level_max]:
-                    warning_level_max = warning_level
+                if warning_level_weights[warning_level] > warning_level_weights[hits_level_max]:
+                    hits_level_max = warning_level
 
         # store the status in tmp
         line = "{};{};{}\n".format(service, mount, warning_level)
         statuses.append(line)
 
+    # build an array of all recipients and their services
+    if session['config']['email']['enabled']:
+        # check if secondary recipients need to be added
+        if 'services' in session['config']['email'].keys() and session['config']['email']['services'] == True:
+            search_config_files = [service_config, session['config']]
+        else:
+            search_config_files = [session['config']]
+        # iterate
+        for config in search_config_files:
+            # setup notices
+            if 'notify' in config:
+                for recipient in config['notify']:
+                    # check if email already exists
+                    if not recipient in configured_services_per_recipient.keys():
+                        configured_services_per_recipient[recipient] = []
+                    # add this service
+                    configured_services_per_recipient[recipient].append(service)
     bar.next()
 
 bar.finish()
-print()
+
+if debugmode:
+    print('Services per recipient...')
+    print(configured_services_per_recipient)
+    print()
 
 ####################################
 # SERVICES TMP AND LOG FILES
@@ -371,12 +387,13 @@ for status in statuses:
     services_tmp_file.write(status)
 
 # log warnings
-if len(warnings):
+if len(hits):
     # log file
-    for level, messages in warnings.items():
-        for message in messages:
-            line = "{};{};{};{}\n".format(datetime_stamp, session['id'], level, message)
-            services_log_file.write(line)
+    for level, messages in hits.items():
+        for service in messages.keys():
+            for message in messages[service]:
+                line = "{};{};{};{}\n".format(datetime_stamp, session['id'], level, message)
+                services_log_file.write(line)
 else:
     line = "{};{};OK".format(datetime_stamp, session['id'])
 
@@ -389,13 +406,13 @@ services_log_file.close()
 ####################################
 print()
 # print final status
-if len(warnings) == 0:
+if len(hits) == 0:
     global_status = 'OK!'
 else:
     global_status = 'NOT OK'
-    print('MAX WARNING LEVEL: {}'.format(warning_level_max.upper()))
+    print('MAX WARNING LEVEL: {}'.format(hits_level_max.upper()))
 
-print('SERVICES GLOBAL STATUS: {}!'.format(global_status, warning_level_max.upper()))
+print('SERVICES GLOBAL STATUS: {}!'.format(global_status, hits_level_max.upper()))
 
 ####################################
 # STORE STATUSES
@@ -428,95 +445,122 @@ while i < len(service_tmp_files):
     i += 1
 
 hashes = []
-changes = False
+changed_services = {}
 # script is ran for the first time (or after reboot)
 if len(service_tmp_files) == 1:
     print('No old runs detected...')
 else:
-    # compare last 2 files
-    for tmp_file in [service_tmp_files[0],service_tmp_files[1]]:
-        hasher = hashlib.md5()
-        with open(os.path.join(tmp_dir, tmp_file), 'rb') as afile:
-            buf = afile.read()
-            hasher.update(buf)
-        hash = hasher.hexdigest()
-        # print(hash)
-        hashes.append(hash)
+    ####################################
+    # COMPARE THE STATUSES
+    # ####################################
+    # store the statuses
+    service_status_log = {}
+    i = 0
+    for run in ['new', 'old']:
 
-    # compare
-    if not hashes[0] == hashes[1]:
-        changes = True
+        service_log_file_path = os.path.join(tmp_dir, service_tmp_files[i])
+        # open the files
+        service_log_file_handle = open(service_log_file_path, 'r')
 
-if not changes:
+        # store the contents of the files in a list
+        service_log_lines = service_log_file_handle.readlines()
+
+        # store the contents of the lists in a associative dictionary
+        service_status_log[run] = {}
+
+        ii = 0
+        while ii < len(service_log_lines):
+            # new services
+            line = service_log_lines[ii].strip()
+            p = line.split(';')
+            service = p[0]
+            status = p[2]
+            service_status_log[run][service] = status
+            ii += 1
+
+        i += 1
+
+    for service, new_status in service_status_log['new'].items():
+        # do not compare a new service
+        if not service in service_status_log['old']:
+            changed_services[service] = new_status
+            print('New service detected... {}'.format(service))
+        elif not service_status_log['new'][service] == service_status_log['old'][service]:
+            changed_services[service] = new_status
+            print('Change in service detected... {}'.format(service))
+
+if len(changed_services) == 0:
     print('No changes, no notifications...')
-
-####################################
-# DESKTOP ALERT
-####################################
-# notify_desktop = False
-# if session['global_config']['desktop']['enabled']:
-#     if session['global_config']['desktop']['trigger'] == 'change':
-#         if len(changes) != 0:
-#             notify_desktop = True
-#     # contiuous notifications
-#     else:
-#         if global_status == 'WARNING':
-#             notify_desktop = True
-#
-# if notify_desktop:
-#     desktop_notify(messages)
 
 ####################################
 # COMPILE LIST OF EMAIL RECIPIENTS
 ####################################
 notify_email = False
-if session['global_config']['email']['enabled']:
-    if changes:
+if session['config']['email']['enabled']:
+    if len(changed_services) != 0:
         notify_email = True
+
+changed_service_recipients = []
+# check all services per recipent for changes
+for recipient, services in configured_services_per_recipient.items():
+    # check if changed
+    for service in services:
+        if service in changed_services:
+            # check if in dict
+            if not recipient in changed_service_recipients:
+                changed_service_recipients.append(recipient)
+                break
+
+if debugmode:
+    print('Changed services...')
+    print(changed_services)
+    print('Notify following recipients...')
+    print(changed_service_recipients)
 
 # log mails - purely for debugging - /tmp used
 mail_log_file_path = os.path.join('/tmp', app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
 mail_log_file = open(mail_log_file_path, 'a')
 
 # pretty output
-report = []
+report = {}
 
-# warnings
-for level, messages in warnings.items():
-    report.append('%%% ' + level.upper() + ' %%%')
-    for message in messages:
-        report.append(message)
-    report.append('')
+# hits
+report['hits'] = []
+for level, messages in hits.items():
+    report['hits'].append('%%% ' + level.upper() + ' %%%')
+    for service in messages.keys():
+        for message in messages[service]:
+            report['hits'].append(message)
+    report['hits'].append('')
 
 # failed connections
+report['failed'] = []
 if len(failed_connections):
-    report.append('%%% FAILED %%%')
+    report['failed'].append('%%% FAILED %%%')
     for f in failed_connections:
-        report.append(f.split(';')[3].rstrip("\n"))
-    report.append('')
+        report['failed'].append(f.split(';')[3].rstrip("\n"))
+    report['failed'].append('')
 
 # ignored mounts
+report['ignored'] = []
 if len(ignored_mounts):
-    report.append('%%% IGNORED %%%')
+    report['ignored'].append('%%% IGNORED %%%')
     for f in ignored_mounts:
-        report.append(f.split(';')[3])
+        report['ignored'].append(f.split(';')[3])
 
 print()
 print('%%%%%% FINAL REPORT %%%%%%')
 print()
-for b in report:
-    print(b)
+for type in ['hits', 'failed', 'ignored']:
+    for b in report[type]:
+        print(b)
 
 # send messages
 if notify_email:
     print()
-    recipients_to_notify = []
-    # messages
-
-    recipients_to_notify = session['global_config']['notify']
 
     # no recipients
-    if len(recipients_to_notify) == 0:
+    if len(changed_service_recipients) == 0:
         print('No email recipients found...')
         print()
         exit()
@@ -524,19 +568,55 @@ if notify_email:
     ####################################
     # PREPARE MAILS
     ####################################
-    # no mail config - allow tmp files to be created!!
-    if not session['global_config']['email']['enabled'] == True:
-        print('Email not enabled...')
-        print()
-        exit()
-
     mails = {}
 
-    for recipient in recipients_to_notify:
+    for recipient in changed_service_recipients:
+
+        level_max = ''
+        hit_found = False
+
         mails[recipient] = {}
 
-        if len(warnings):
-            status = 'DISK SPACE ' + warning_level_max.upper()
+
+        hits_per_recipient = {}
+        for level in warning_levels:
+            hits_per_recipient[level] = []
+
+        body = []
+        # filter relevant messages
+        for level, messages in hits.items():
+            if len(messages):
+                # add services
+                for service in messages.keys():
+                    if service in configured_services_per_recipient[recipient]:
+                        # get max level for the subject
+                        if level_max == '':
+                            level_max = level
+                        else:
+                            if warning_level_weights[level] > warning_level_weights[level_max]:
+                                level_max = level
+                        for message in messages[service]:
+                            hit_found = True
+                            hits_per_recipient[level].append(message)
+
+        if not hit_found:
+            continue
+
+        for level, messages in hits_per_recipient.items():
+            if len(messages):
+                body.append('%%% ' + level.upper() + ' %%%')
+                # add services
+                for message in messages:
+                    body.append(message)
+                body.append('')
+
+        if recipient in session['config']['notify']:
+            for type in ['failed', 'ignored']:
+                for b in report[type]:
+                    body.append(b)
+
+        if len(hits):
+            status = 'DISK SPACE {}'.format(level_max.upper())
         else:
             status = 'DISK SPACE OK'
 
@@ -544,13 +624,18 @@ if notify_email:
         subject = app_nickname.upper() + ' @' + hostname + ' ' + status
 
         mails[recipient]['subject'] = subject
-        mails[recipient]['body'] = report
+        mails[recipient]['body'] = body
 
     ####################################
     # SEND MAILS
     ####################################
     # iterate all mails
     fqdn = socket.getfqdn()
+    # mail error
+    mail_errors = []
+
+    i=1
+    # iterate all recipients
     for recipient in mails.keys():
 
         sender = app_nickname + '@' + fqdn
@@ -568,18 +653,22 @@ if notify_email:
         message.append('Run ID: {}'.format(session['id']))
 
         if debugmode:
-            print("\n".join(message))
-
-        try:
-            print('Sending mails to server {}...'.format(session['global_config']['email']['server']))
-            smtpObj = smtplib.SMTP(session['global_config']['email']['server'], 25)
-            # smtpObj.set_debuglevel(True)
-            smtpObj.sendmail(sender, recipient, "\n".join(message))
-            print("Successfully sent email to " + recipient + "...")
-        except:
-            print("Error! Unable to send email...")
-            mail_log_file.write('ERROR sending mail to {}'.format(recipient))
-            exit(1)
+            print('------ MAIL {} ------'.format(i))
+            print(' --- ', end='')
+            print("\n --- ".join(message))
+            print('---')
+            print('Debugmode, skip sending mails...')
+        else:
+            try:
+                print('Sending mail to server {}... '.format(session['config']['email']['server']), end='')
+                smtpObj = smtplib.SMTP(session['config']['email']['server'], 25)
+                # smtpObj.set_debuglevel(True)
+                smtpObj.sendmail(sender, recipient, "\n".join(message))
+                print("Successfully sent email to " + recipient + "...")
+            except:
+                print("Failed!")
+                mail_log_file.write('ERROR sending mail to {}'.format(recipient))
+                mail_errors.append(recipient)
 
         # log
         for line in message:
@@ -587,8 +676,15 @@ if notify_email:
 
         mail_log_file.write("\n\n --- \n\n")
 
+        i+=1
+
     # close log file
     mail_log_file.close()
+
+
+if len(mail_errors):
+    print('Sending of mails failed for recipients: {}'.format(', '.join(mail_errors)))
+    exit(1)
 
 print()
 print('Bye...')
