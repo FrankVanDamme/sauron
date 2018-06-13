@@ -64,7 +64,7 @@ datetime_stamp = str(datetime.datetime.now().strftime(format))
 ####################################
 parser = argparse.ArgumentParser(description=app_name + app_version)
 parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
-parser.add_argument('-c', '--configfile', help='Config json or yaml file', required=False, default=os.path.join(session['dir'], 'config/default.config.yaml'))
+parser.add_argument('-c', '--configfile', help='Config json or yaml file', required=True, default=os.path.join(session['dir'], 'config/default.config.yaml'))
 # flag without arguments
 parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
 #parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
