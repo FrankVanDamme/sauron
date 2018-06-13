@@ -109,7 +109,13 @@ for type, file_path in cli_params.items():
         if re.search('.+\.json$', file_path):
             session[type] = json.load(file)
         elif re.search('.+\.ya?ml$', file_path):
-            session[type] = yaml.load(file)
+            try:
+                session[type] = yaml.load(file)
+            except yaml.YAMLError as exc:
+                if hasattr(exc, 'problem_mark'):
+                    mark = exc.problem_mark
+                print("Error reading yaml, position: ({}:{})".format(mark.line + 1, mark.column + 1))
+                exit(1)
         else:
             print('{} file not supported!'.format(type))
             exit(1)
