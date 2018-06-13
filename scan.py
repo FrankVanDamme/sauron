@@ -681,10 +681,9 @@ if notify_email:
     # close log file
     mail_log_file.close()
 
-
-if len(mail_errors):
-    print('Sending of mails failed for recipients: {}'.format(', '.join(mail_errors)))
-    exit(1)
+    if len(mail_errors):
+        print('Sending of mails failed for recipients: {}'.format(', '.join(mail_errors)))
+        exit(1)
 
 print()
 print('Bye...')
