@@ -90,7 +90,7 @@ else:
 
 for services_log_file_path in [args.configfile, args.servicesfile]:
     if not os.path.isfile(services_log_file_path) and not os.path.islink(services_log_file_path):
-        print('Abort! {} is not a file!'.format(services_log_file_path))
+        print('Abort! Cannot access {}!'.format(services_log_file_path))
         exit(1)
 
 ####################################
@@ -102,7 +102,7 @@ cli_params['config'] = args.configfile
 
 for type, file_path in cli_params.items():
     if not os.path.isfile(file_path):
-        print('{} file not found!'.format(type))
+        print('Abort! Cannot access {}!'.format(type))
         exit(1)
 
     with open(file_path) as file:
