@@ -558,6 +558,9 @@ print()
 print('%%%%%% FINAL REPORT %%%%%%')
 print()
 for type in ['hits', 'failed', 'ignored']:
+    # sort
+    report[type] = sorted(report[type])
+    # iterate services
     for b in report[type]:
         print(b)
 
