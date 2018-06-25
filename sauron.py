@@ -530,12 +530,18 @@ mail_log_file = open(mail_log_file_path, 'a')
 # pretty output
 report = {}
 
+# mark message if changed
+message_mark = '(!)'
+
 # hits
 report['hits'] = []
 for level, messages in hits.items():
     report['hits'].append('%%% ' + level.upper() + ' %%%')
     for service in messages.keys():
         for message in messages[service]:
+            # mark changed service
+            if service in changed_services.keys():
+                message = message + ' ' + message_mark
             report['hits'].append(message)
     report['hits'].append('')
 
@@ -606,6 +612,9 @@ if notify_email:
                                 level_max = level
                         for message in messages[service]:
                             hit_found = True
+                            # mark changed service
+                            if service in changed_services.keys():
+                                message = message + ' ' + message_mark
                             hits_per_recipient[level].append(message)
 
         if not hit_found:
