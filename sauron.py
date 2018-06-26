@@ -254,12 +254,12 @@ for service, service_config in session['services'].items():
 
     if debugmode:
         print()
-        print('>>>>>>>>>>>>>>> {} >>>>>>>>>>>>>>>'.format(service))
+        print('======> {} <======'.format(service))
         print(result)
         print()
-        print('service config:')
+        print('===> Service config:')
         print(service_config)
-        print('session config:')
+        print('===> Session config:')
         print(session['config']['thresholds'])
 
     for line in result:
@@ -274,7 +274,7 @@ for service, service_config in session['services'].items():
             usage = int(pieces[4].strip('%'))
 
         if debugmode:
-            print('Checking mount {}, usage: {}'.format(mount, usage))
+            print('=> Checking mount {}, usage: {}'.format(mount, usage))
 
         thresholds = {}
         ####################################
@@ -294,7 +294,7 @@ for service, service_config in session['services'].items():
                 # check for mount in config
                 if mount in resource['ignored']:
                     if debugmode:
-                        print('Skipping ignored mount: "{}"'.format(mount))
+                        print('=> Skipping ignored mount: "{}"'.format(mount))
                     line = '{};{};ignored;{} {} {}%'.format(datetime_stamp, session['id'], service, mount, usage)
                     ignored_mounts.append(line)
                     skip_mount = True
@@ -376,7 +376,7 @@ for service, service_config in session['services'].items():
 bar.finish()
 
 if debugmode:
-    print('Services per recipient...')
+    print('===> Services per recipient...')
     print(configured_services_per_recipient)
     print()
 
@@ -385,7 +385,7 @@ if debugmode:
 ####################################
 services_tmp_file = open(services_tmp_file_path, 'w')
 
-print('Write log file... {}'.format(services_log_file_path))
+print('===> Write log file... {}'.format(services_log_file_path))
 services_log_file = open(services_log_file_path, 'a')
 
 # store status
@@ -434,7 +434,7 @@ for file in tmp_files:
 
 if debugmode:
     print()
-    print('tmp files...')
+    print('===> Tmp files...')
     for i in service_tmp_files:
         print(i)
 
@@ -518,9 +518,9 @@ for recipient, services in configured_services_per_recipient.items():
                 break
 
 if debugmode:
-    print('Changed services...')
+    print('===> Changed services...')
     print(changed_services)
-    print('Notify following recipients...')
+    print('===> Notify following recipients...')
     print(changed_service_recipients)
 
 # log mails - purely for debugging - /tmp used
@@ -534,16 +534,19 @@ report = {}
 message_mark = '(!)'
 
 # hits
-report['hits'] = []
-for level, messages in hits.items():
-    report['hits'].append('%%% ' + level.upper() + ' %%%')
-    for service in messages.keys():
-        for message in messages[service]:
-            # mark changed service
-            if service in changed_services.keys():
-                message = message + ' ' + message_mark
-            report['hits'].append(message)
-    report['hits'].append('')
+for level in warning_levels:
+    if level in hits:
+        # set key
+        report[level] = []
+        # add content
+        report[level].append('%%% ' + level.upper() + ' %%%')
+        for service in hits[level]:
+            for message in hits[level][service]:
+                # mark changed service
+                if service in changed_services.keys():
+                    message = message + ' ' + message_mark
+                report[level].append(message)
+        report[level].append('')
 
 # failed connections
 report['failed'] = []
@@ -563,12 +566,19 @@ if len(ignored_mounts):
 print()
 print('%%%%%% FINAL REPORT %%%%%%')
 print()
-for type in ['hits', 'failed', 'ignored']:
+
+types = warning_levels
+types.append('failed')
+types.append('ignored')
+for type in types:
+    if type not in report:
+        continue
     # sort
     report[type] = sorted(report[type])
     # iterate services
     for b in report[type]:
         print(b)
+    print()
 
 # send messages
 if notify_email:
@@ -617,26 +627,23 @@ if notify_email:
                                 message = message + ' ' + message_mark
                             hits_per_recipient[level].append(message)
 
-        if not hit_found:
-            continue
-
-        for level, messages in hits_per_recipient.items():
-            if len(messages):
-                body.append('%%% ' + level.upper() + ' %%%')
-                # add services
-                for message in messages:
-                    body.append(message)
-                body.append('')
+        # services are OK
+        if hit_found:
+            for level, messages in hits_per_recipient.items():
+                if len(messages):
+                    body.append('%%% ' + level.upper() + ' %%%')
+                    # add services
+                    for message in messages:
+                        body.append(message)
+                    body.append('')
+            status = 'DISK SPACE {}'.format(level_max.upper())
+        else:
+            status = 'DISK SPACE OK'
 
         if recipient in session['config']['notify']:
             for type in ['failed', 'ignored']:
                 for b in report[type]:
                     body.append(b)
-
-        if len(hits):
-            status = 'DISK SPACE {}'.format(level_max.upper())
-        else:
-            status = 'DISK SPACE OK'
 
         hostname = socket.gethostname()
         subject = app_nickname.upper() + ' @' + hostname + ' ' + status
