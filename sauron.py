@@ -538,33 +538,28 @@ for level in warning_levels:
     if level in hits:
         # set key
         report[level] = []
-        # add content
-        report[level].append('%%% ' + level.upper() + ' %%%')
+
         for service in hits[level]:
             for message in hits[level][service]:
                 # mark changed service
                 if service in changed_services.keys():
                     message = message + ' ' + message_mark
                 report[level].append(message)
-        report[level].append('')
 
 # failed connections
 report['failed'] = []
 if len(failed_connections):
-    report['failed'].append('%%% FAILED %%%')
     for f in failed_connections:
         report['failed'].append(f.split(';')[3].rstrip("\n"))
-    report['failed'].append('')
 
 # ignored mounts
 report['ignored'] = []
 if len(ignored_mounts):
-    report['ignored'].append('%%% IGNORED %%%')
     for f in ignored_mounts:
         report['ignored'].append(f.split(';')[3])
 
 print()
-print('%%%%%% FINAL REPORT %%%%%%')
+print('%%%%%% REPORT %%%%%%')
 print()
 
 types = warning_levels
@@ -573,6 +568,8 @@ types.append('ignored')
 for type in types:
     if type not in report:
         continue
+
+    print('%%% {} %%%'.format(type))
     # sort
     report[type] = sorted(report[type])
     # iterate services
@@ -631,7 +628,7 @@ if notify_email:
         if hit_found:
             for level, messages in hits_per_recipient.items():
                 if len(messages):
-                    body.append('%%% ' + level.upper() + ' %%%')
+                    body.append('%%% ' + level + ' %%%')
                     # add services
                     for message in messages:
                         body.append(message)
@@ -642,8 +639,10 @@ if notify_email:
 
         if recipient in session['config']['notify']:
             for type in ['failed', 'ignored']:
+                body.append('%%% ' + type + ' %%%')
                 for b in report[type]:
                     body.append(b)
+                body.append('')
 
         hostname = socket.gethostname()
         subject = app_nickname.upper() + ' @' + hostname + ' ' + status
