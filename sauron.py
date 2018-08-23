@@ -102,8 +102,13 @@ cli_params['config'] = args.configfile
 
 for type, file_path in cli_params.items():
     if not os.path.isfile(file_path):
-        print('Abort! Cannot access {}!'.format(type))
+        print('Abort! Cannot access {}!'.format(file_path))
         exit(1)
+
+    if not os.stat(file_path).st_size > 0:
+        print('Abort! Empty file: {}!'.format(file_path))
+        exit(1)
+
 
     with open(file_path) as file:
         if re.search('.+\.json$', file_path):
