@@ -41,6 +41,14 @@ import yaml
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 # progress bar
 from progress.bar import Bar
+
+####################################
+# PATH
+####################################
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
 ####################################
 # MAIN VARIABLES
 ####################################
@@ -567,7 +575,7 @@ print()
 print('%%%%%% REPORT %%%%%%')
 print()
 
-types = warning_levels
+types = warning_levels.copy()
 types.append('failed')
 types.append('ignored')
 for type in types:
@@ -609,6 +617,7 @@ if notify_email:
         for level in warning_levels:
             hits_per_recipient[level] = []
 
+
         body = []
         # filter relevant messages
         for level, messages in hits.items():
@@ -631,12 +640,14 @@ if notify_email:
 
         # services are OK
         if hit_found:
-            for level, messages in hits_per_recipient.items():
-                if len(messages):
-                    body.append('%%% ' + level + ' %%%')
-                    # add services
-                    for message in messages:
-                        body.append(message)
+            for level in warning_levels:
+                if level in hits_per_recipient.keys():
+                    body.append('+++ ' + level.upper() + ' +++')
+
+                    for message in hits_per_recipient[level]:
+                        if len(message):
+                            body.append(message)
+
                     body.append('')
             status = 'DISK SPACE {}'.format(level_max.upper())
         else:
@@ -644,7 +655,7 @@ if notify_email:
 
         if recipient in session['config']['notify']:
             for type in ['failed', 'ignored']:
-                body.append('%%% ' + type + ' %%%')
+                body.append('+++ ' + type.upper() + ' +++')
                 for b in report[type]:
                     body.append(b)
                 body.append('')
