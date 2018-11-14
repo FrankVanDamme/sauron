@@ -60,6 +60,9 @@ session = {}
 session['dir'] = os.path.dirname(__file__)
 session['id'] = str(uuid.uuid4())
 session['hash'] = hashlib.md5('.'.join(sys.argv[1:]).encode('utf-8')).hexdigest()
+
+column_widths = [32, 8, 16, 32]
+
 ####################################
 # DATE AND TIME
 ####################################
@@ -283,9 +286,11 @@ for service, service_config in session['services'].items():
         # monkey mode
         if monkey:
             usage = random.randint(0, 100)
+            size = '-'
         else:
             usage = int(pieces[4].strip('%'))
-
+            size = '{}/{}+{}'.format(pieces[1], pieces[2], pieces[3])
+            size = '{}/{}'.format(pieces[2], pieces[1])
         if debugmode:
             print('=> Checking mount {}, usage: {}'.format(mount, usage))
 
@@ -308,7 +313,19 @@ for service, service_config in session['services'].items():
                 if mount in resource['ignored']:
                     if debugmode:
                         print('=> Skipping ignored mount: "{}"'.format(mount))
-                    line = '{};{};ignored;{} {} {}%'.format(datetime_stamp, session['id'], service, mount, usage)
+
+                    # pretty output per line
+                    space=(30-len(service))*' '
+                    line = '{};{};ignored;'.format(datetime_stamp, session['id'])
+                    usage = '{}%'.format(usage)
+                    column_fields = [service, usage, size, mount]
+                    i = 0
+                    for field in column_fields:
+                        field = str(field).strip()
+                        seperator = (column_widths[i] - len(field)) * ' '
+                        line = line + field + seperator
+                        i += 1
+
                     ignored_mounts.append(line)
                     skip_mount = True
                 break
@@ -352,7 +369,19 @@ for service, service_config in session['services'].items():
             # add this mount to the log
             if level not in hits:
                 hits[level] = {}
-            line = '{} {} {}%'.format(service, mount, usage)
+
+            # pretty output per line
+            line=''
+            usage='{}%'.format(usage)
+            column_fields = [service, usage, size, mount]
+
+            i=0
+            for field in column_fields:
+                field=str(field).strip()
+                seperator = (column_widths[i] - len(field)) * ' '
+                line = line + field + seperator
+                i+=1
+
             if service not in hits[level]:
                 hits[level][service] = []
             hits[level][service].append(line)
