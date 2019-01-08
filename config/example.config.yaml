@@ -13,10 +13,11 @@ email:
 ignored:
   - /var
   - /tmp
-# do not bother fozzie unless it is critical
+# do not bother fozzie unless levels are critical or warning
 limit_notify:
   fozzie@muppets.domain:
     - critical
+    - warning
 notify:
   - kermit@muppets.domain
   - fozzie@muppets.domain

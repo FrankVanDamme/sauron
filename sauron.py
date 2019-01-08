@@ -678,9 +678,10 @@ if notify_email:
 
 
             # check if notification limit is set for this user
-            if recipient in session['config']['limit_notify']:
-                if not level_max in session['config']['limit_notify'][recipient]:
-                    continue
+            if 'limit_notify' in session['config']:
+                if recipient in session['config']['limit_notify']:
+                    if not level_max in session['config']['limit_notify'][recipient]:
+                        continue
 
             status = 'DISK SPACE {}'.format(level_max.upper())
         else:
