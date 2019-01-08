@@ -639,9 +639,6 @@ if notify_email:
         level_max = ''
         hit_found = False
 
-        mails[recipient] = {}
-
-
         hits_per_recipient = {}
         for level in warning_levels:
             hits_per_recipient[level] = []
@@ -678,10 +675,18 @@ if notify_email:
                             body.append(message)
 
                     body.append('')
+
+
+            # check if notification limit is set for this user
+            if recipient in session['config']['limit_notify']:
+                if not level_max in session['config']['limit_notify'][recipient]:
+                    continue
+
             status = 'DISK SPACE {}'.format(level_max.upper())
         else:
             status = 'DISK SPACE OK'
 
+        # extra info for admins
         if recipient in session['config']['notify']:
             for type in ['failed', 'ignored']:
                 body.append('+++ ' + type.upper() + ' +++')
@@ -692,6 +697,7 @@ if notify_email:
         hostname = socket.gethostname()
         subject = app_nickname.upper() + ' @' + hostname + ' ' + status
 
+        mails[recipient] = {}
         mails[recipient]['subject'] = subject
         mails[recipient]['body'] = body
 

@@ -13,8 +13,13 @@ email:
 ignored:
   - /var
   - /tmp
+# do not bother fozzie unless it is critical
+limit_notify:
+  fozzie@muppets.domain:
+    - critical
 notify:
   - kermit@muppets.domain
+  - fozzie@muppets.domain
 ssh_timeout: 15
 thresholds:
   default:
