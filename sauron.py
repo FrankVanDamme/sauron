@@ -243,7 +243,7 @@ print()
 configured_services_per_recipient = {}
 
 # request the urls
-for service, service_config in session['services'].items():
+for service, service_config in sorted(session['services'].items()):
 
     if debugmode:
         print('+ + Connect to service {} + +'.format(service))
@@ -294,6 +294,7 @@ for service, service_config in session['services'].items():
             usage = int(pieces[4].strip('%'))
             size = '{}/{}+{}'.format(pieces[1], pieces[2], pieces[3])
             size = '{}/{}'.format(pieces[2], pieces[1])
+
         if debugmode:
             print('=> Checking mount {}, usage: {}'.format(mount, usage))
 
@@ -430,12 +431,20 @@ if debugmode:
 ####################################
 services_tmp_file = open(services_tmp_file_path, 'w')
 
+print()
 print('===> Write log file... {}'.format(services_log_file_path))
+print()
+
 services_log_file = open(services_log_file_path, 'a')
 
 # store status
 for status in statuses:
     services_tmp_file.write(status)
+    print(status, end='')
+#
+# file = open(services_tmp_file, "r")
+# for line in file:
+#     print(line, end='')
 
 # log warnings
 if len(hits):
@@ -499,7 +508,7 @@ hashes = []
 changed_services = {}
 # script is ran for the first time (or after reboot)
 if len(service_tmp_files) == 1:
-    print('No old runs detected...')
+    print('No old runs detected???')
 else:
     ####################################
     # COMPARE THE STATUSES
