@@ -12,7 +12,7 @@ import datetime
 # read the json file
 import json
 # status codes
-#import requests
+# import requests
 # read dirs and files
 import os.path
 # create a unique identifier per session
@@ -33,12 +33,13 @@ import subprocess
 import shutil
 # http requests:
 # $ apt install python3-urllib3
-#import urllib3
+# import urllib3
 # yaml supprt
 import yaml
 
 # include 3d party libraries: add the lib/ dir to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
+
 # progress bar
 from progress.bar import Bar
 
@@ -78,9 +79,9 @@ parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', r
 parser.add_argument('-c', '--configfile', help='Config json or yaml file', required=True, default=os.path.join(session['dir'], 'config/default.config.yaml'))
 # flag without arguments
 parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
-#parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
+# parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
-#parser.add_argument('-t', '--tag', help='tag, e.g. server name', required=False, default=False)
+# parser.add_argument('-t', '--tag', help='tag, e.g. server name', required=False, default=False)
 args = parser.parse_args()
 
 ####################################
@@ -169,6 +170,7 @@ print()
 # FUNCTIONS
 ####################################
 
+
 # notifications for the desktop
 def desktop_notify(messages):
 
@@ -187,10 +189,11 @@ def desktop_notify(messages):
         print('Could not notify desktop. Package python3-notify2 installed? {}'.format(e.args[1]))
         exit(1)
 
+
 ####################################
 # ITERATE SERVICES
 ####################################
-messages=[]
+messages = []
 connectivity_checked = False
 
 # write status in tmp file
@@ -549,7 +552,7 @@ if session['config']['email']['enabled']:
         notify_email = True
 
 changed_service_recipients = []
-# check all services per recipent for changes
+# check all services per recipient for changes
 for recipient, services in configured_services_per_recipient.items():
     # check if changed
     for service in services:
@@ -675,7 +678,6 @@ if notify_email:
                             body.append(message)
 
                     body.append('')
-
 
             # check if notification limit is set for this user
             if 'limit_notify' in session['config']:
