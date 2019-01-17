@@ -31,6 +31,8 @@ import sys
 import subprocess
 # move files to other dirs
 import shutil
+# sleep
+import time
 # http requests:
 # $ apt install python3-urllib3
 # import urllib3
@@ -63,6 +65,7 @@ session['id'] = str(uuid.uuid4())
 session['hash'] = hashlib.md5('.'.join(sys.argv[1:]).encode('utf-8')).hexdigest()
 
 column_widths = [32, 8, 16, 32]
+max_ssh_retry = 3
 
 ####################################
 # DATE AND TIME
@@ -252,14 +255,24 @@ for service, service_config in sorted(session['services'].items()):
     COMMAND = "df -Ph | grep -E '^/dev' | tr -s ' ' "
 
     timeout = str(session['config']['ssh_timeout'])
-    ssh = subprocess.Popen(["ssh", '-o BatchMode=yes', '-o ConnectTimeout='+timeout, "%s" % service, COMMAND], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    result = []
-    output = ssh.stdout.readlines()
-    for o in output:
-        result.append((o.decode()))
+    i=0
 
-    if len(result) == 0:
+    while i < max_ssh_retry:
+
+        ssh = subprocess.Popen(["ssh", '-o BatchMode=yes', '-o ConnectTimeout='+timeout, "%s" % service, COMMAND], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output = ssh.stdout.readlines()
+
+        if len(output) != 0:
+            break
+
+        # wait
+        time.sleep(3)
+
+        i += 1
+
+    # continue if no connection can be established
+    if len(output) == 0:
         error = ssh.stderr.readlines()
         if debugmode:
             print('Failed! Write connection error for {} to log file... {}'.format(service, services_log_file_path))
@@ -270,6 +283,11 @@ for service, service_config in sorted(session['services'].items()):
         services_log_file.close()
         bar.next()
         continue
+
+    # decode the result
+    result = []
+    for o in output:
+        result.append((o.decode()))
 
     if debugmode:
         print()
