@@ -109,8 +109,7 @@ else:
 ####################################
 if args.inode:
     inode = True
-    verify_type = 'inode usage' \
-                  ''
+    verify_type = 'inode usage'
 else:
     inode = False
     verify_type = 'disk space'
