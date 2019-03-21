@@ -78,12 +78,13 @@ datetime_stamp = str(datetime.datetime.now().strftime(format))
 # PARSE ARGUMENTS
 ####################################
 parser = argparse.ArgumentParser(description=app_name + app_version)
-parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
 parser.add_argument('-c', '--configfile', help='Config json or yaml file', required=True, default=os.path.join(session['dir'], 'config/default.config.yaml'))
 # flag without arguments
+parser.add_argument('-i', '--inode', help='check inode use, not disk', required=False, default=False, action='store_true')
 parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
-# parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
+parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
+# parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
 # parser.add_argument('-t', '--tag', help='tag, e.g. server name', required=False, default=False)
 args = parser.parse_args()
 
@@ -103,6 +104,20 @@ if args.monkey:
 else:
     monkey = False
 
+####################################
+# VERIFY TYPE
+####################################
+if args.inode:
+    inode = True
+    verify_type = 'inode usage' \
+                  ''
+else:
+    inode = False
+    verify_type = 'disk space'
+
+####################################
+# CHECK LOG FILE
+####################################
 for services_log_file_path in [args.configfile, args.servicesfile]:
     if not os.path.isfile(services_log_file_path) and not os.path.islink(services_log_file_path):
         print('Abort! Cannot access {}!'.format(services_log_file_path))
@@ -239,7 +254,7 @@ ignored_mounts = []
 number_of_services = len(session['services'].items())
 bar = Bar('Scanning...', max=number_of_services)
 
-print('Check {} services...'.format(len(session['services'].items())))
+print('Check {} for {} services...'.format(verify_type, len(session['services'].items())))
 print()
 
 # list of services per recipient
@@ -251,8 +266,13 @@ for service, service_config in sorted(session['services'].items()):
     if debugmode:
         print('+ + Connect to service {} + +'.format(service))
 
+    if inode:
+        options = "-Phi"
+    else:
+        options = "-Ph"
+
     # Ports are handled in ~/.ssh/config since we use OpenSSH
-    COMMAND = "df -Ph | grep -E '^/dev' | tr -s ' ' "
+    COMMAND = "df " + options + " | grep -E '^/dev' | tr -s ' ' "
 
     timeout = str(session['config']['ssh_timeout'])
 
@@ -631,7 +651,7 @@ if len(ignored_mounts):
         report['ignored'].append(f.split(';')[3])
 
 print()
-print('%%%%%% REPORT %%%%%%')
+print('%%%%%% {} %%%%%%'.format(verify_type.upper()))
 print()
 
 types = warning_levels.copy()
@@ -675,6 +695,11 @@ if notify_email:
 
 
         body = []
+
+        # add verify type to body
+        body.append('Verifying {}...'.format(verify_type))
+        body.append('')
+
         # filter relevant messages
         for level, messages in hits.items():
             if len(messages):
@@ -712,9 +737,10 @@ if notify_email:
                     if not level_max in session['config']['limit_notify'][recipient]:
                         continue
 
-            status = 'DISK SPACE {}'.format(level_max.upper())
+            status = '{} {}'.format(verify_type.upper(), level_max.upper())
+
         else:
-            status = 'DISK SPACE OK'
+            status = '{} OK'.format(verify_type.upper())
 
         # extra info for admins
         if recipient in session['config']['notify']:
