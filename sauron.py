@@ -674,6 +674,10 @@ types = warning_levels.copy()
 types.append('failed')
 types.append('ignored')
 types.append('unknown')
+
+# issues to be reported
+reported_issues = False
+
 for type in types:
     if type not in report:
         continue
@@ -686,8 +690,12 @@ for type in types:
     report[type] = sorted(report[type])
     # iterate services
     for b in report[type]:
+        reported_issues = True
         print(b)
     print()
+
+if reported_issues is False:
+    print('No issues reported.')
 
 # send messages
 if notify_email:
