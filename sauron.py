@@ -239,6 +239,7 @@ failed_connections = []
 
 # ignored mounts
 ignored_mounts = []
+unknown_mounts = []
 
 # # delete random service
 # if monkey:
@@ -323,13 +324,22 @@ for service, service_config in sorted(session['services'].items()):
             print(line)
         pieces = line.split(' ')
         mount = pieces[5].strip()
+
+        # ignored/unknown mounts
+        ignored_mount = False
+        unknown_mount = False
+
         # monkey mode
         if monkey:
             usage = random.randint(0, 100)
             size = '-'
         else:
-            usage = int(pieces[4].strip('%'))
-            size = '{}/{}+{}'.format(pieces[1], pieces[2], pieces[3])
+            try:
+                usage = int(pieces[4].strip('%'))
+            except:
+                usage = 0
+                unknown_mount = True
+
             size = '{}/{}'.format(pieces[2], pieces[1])
 
         if debugmode:
@@ -339,8 +349,6 @@ for service, service_config in sorted(session['services'].items()):
         ####################################
         # CHECK CONFIG
         ####################################
-        # ignored mounts
-        skip_mount = False
         # the service config overrides the global config
         for resource in [service_config, session['config']]:
             # is there a key "ignored" and of so, does it contain the mount?
@@ -368,11 +376,14 @@ for service, service_config in sorted(session['services'].items()):
                         i += 1
 
                     ignored_mounts.append(line)
-                    skip_mount = True
+                    ignored_mount = True
                 break
 
         #  ignore the mount
-        if skip_mount:
+        if ignored_mount:
+            continue
+        elif unknown_mount:
+            unknown_mounts.append('{} {}'.format(service, mount))
             continue
 
         # threshold overriding
@@ -649,6 +660,12 @@ if len(ignored_mounts):
     for f in ignored_mounts:
         report['ignored'].append(f.split(';')[3])
 
+# unknown mounts
+report['unknown'] = []
+if len(unknown_mounts):
+    for f in unknown_mounts:
+        report['unknown'].append(f)
+
 print()
 print('%%%%%% {} %%%%%%'.format(verify_type.upper()))
 print()
@@ -656,11 +673,15 @@ print()
 types = warning_levels.copy()
 types.append('failed')
 types.append('ignored')
+types.append('unknown')
 for type in types:
     if type not in report:
         continue
 
-    print('%%% {} %%%'.format(type))
+    if len(report[type]) is 0:
+        continue
+
+    print('%%% {} ({}) %%%'.format(type, len(report[type])))
     # sort
     report[type] = sorted(report[type])
     # iterate services
