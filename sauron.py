@@ -64,7 +64,6 @@ session['dir'] = os.path.dirname(__file__)
 session['id'] = str(uuid.uuid4())
 session['hash'] = hashlib.md5('.'.join(sys.argv[1:]).encode('utf-8')).hexdigest()
 
-column_widths = [32, 8, 16, 32]
 max_ssh_retry = 3
 
 ####################################
@@ -84,6 +83,7 @@ parser.add_argument('-i', '--inode', help='check inode use, not disk', required=
 parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
 parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
+parser.add_argument('-w', '--waste', help='Wasted space percentage', required=False)
 # parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
 # parser.add_argument('-t', '--tag', help='tag, e.g. server name', required=False, default=False)
 args = parser.parse_args()
@@ -103,6 +103,20 @@ if args.monkey:
     monkey = True
 else:
     monkey = False
+
+####################################
+# WAISTE
+####################################
+if args.waste:
+    if args.waste.isdigit() == False:
+        print('Abort! Waste not a number: {}!'.format(args.waste))
+        exit(1)
+    waste_value = int(args.waste)
+    if waste_value > 100 or waste_value < 0:
+        print('Abort! Waste not a valid percentage: {}!'.format(args.waste))
+        exit(1)
+    else:
+        waste = args.waste
 
 ####################################
 # VERIFY TYPE
@@ -206,6 +220,20 @@ def desktop_notify(messages):
         print('Could not notify desktop. Package python3-notify2 installed? {}'.format(e.args[1]))
         exit(1)
 
+def make_pretty_output(service, usage, size, mount):
+
+    column_widths = [32, 8, 16, 32]
+
+    column_fields = [service, usage, size, mount]
+    i = 0
+    line=''
+    for field in column_fields:
+        field = str(field).strip()
+        seperator = (column_widths[i] - len(field)) * ' '
+        line = line + field + seperator
+        i += 1
+
+    return(line)
 
 ####################################
 # ITERATE SERVICES
@@ -220,7 +248,7 @@ statuses = []
 hits = {}
 
 # setup warning levels
-warning_levels = ['critical', 'warning', 'notice', 'info']
+warning_levels = ['full', 'critical', 'warning', 'notice', 'info']
 
 hits_level_max = ''
 
@@ -234,21 +262,9 @@ for level in warning_levels:
 services_tmp_file_path = os.path.join(tmp_dir, app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.services.tmp')
 services_log_file_path = os.path.join(log_dir, app_nickname + '.' + date_stamp + '.services.log')
 
-# failed ssh connections
-failed_connections = []
-
-# ignored mounts
-ignored_mounts = []
-unknown_mounts = []
-
-# # delete random service
-# if monkey:
-#     services = list(session['services'].keys())
-#     random_service =  random.choice(services)
-#     print('--> Monkey deleted service {} :)'.format(random_service))
-#     session['services'].pop(random_service, None)
-#     print()
-
+categories = {}
+for type in ['ignored', 'unknown', 'failed', 'waste']:
+    categories[type] = []
 
 # create the progress bar
 number_of_services = len(session['services'].items())
@@ -298,7 +314,7 @@ for service, service_config in sorted(session['services'].items()):
             print('Failed! Write connection error for {} to log file... {}'.format(service, services_log_file_path))
         services_log_file = open(services_log_file_path, 'a')
         line = "{};{};error;{} {}\n".format(datetime_stamp, session['id'], service, error[0].decode().rstrip())
-        failed_connections.append(line)
+        categories['failed'].append(line)
         services_log_file.write(line)
         services_log_file.close()
         bar.next()
@@ -364,18 +380,12 @@ for service, service_config in sorted(session['services'].items()):
                         print('=> Skipping ignored mount: "{}"'.format(mount))
 
                     # pretty output per line
-                    space=(30-len(service))*' '
                     line = '{};{};ignored;'.format(datetime_stamp, session['id'])
                     usage = '{}%'.format(usage)
-                    column_fields = [service, usage, size, mount]
-                    i = 0
-                    for field in column_fields:
-                        field = str(field).strip()
-                        seperator = (column_widths[i] - len(field)) * ' '
-                        line = line + field + seperator
-                        i += 1
 
-                    ignored_mounts.append(line)
+                    line = line + make_pretty_output(service, usage, size, mount)
+
+                    categories['ignored'].append(line)
                     ignored_mount = True
                 break
 
@@ -383,17 +393,22 @@ for service, service_config in sorted(session['services'].items()):
         if ignored_mount:
             continue
         elif unknown_mount:
-            unknown_mounts.append('{} {}'.format(service, mount))
+            categories['unknown'].append('{} {}'.format(service, mount))
             continue
 
         # threshold overriding
         for level in warning_levels:
+
+            # skip full
+            if level is 'full':
+                thresholds[level] = 100
             # global defaults
-            if not level in session['config']['thresholds']['default']:
+            elif not level in session['config']['thresholds']['default']:
                 print('Must have default thresholds in global config file! Missing level {}'.format(level))
                 exit(1)
             else:
                 thresholds[level] = session['config']['thresholds']['default'][level]
+
             # global override
             if mount in session['config']['thresholds']:
                 if level in session['config']['thresholds'][mount]:
@@ -408,16 +423,34 @@ for service, service_config in sorted(session['services'].items()):
                     if level in service_config['thresholds'][mount]:
                         thresholds[level] = service_config['thresholds'][mount][level]
 
-        warning_level = ''
+        # get waste
+        if args.waste:
+            if usage <= waste_value:
+                line = '{};{};ignored;'.format(datetime_stamp, session['id'])
+                line = line + make_pretty_output(service, '{}%'.format(usage), size, mount)
+                categories['waste'].append(line)
+
+        # set default to OK
+        warning_level = 'OK'
+
+        # get full disk usage
+        # if usage == 1:
+        #     warning_level = 'full'
+        # else:
+
         for level in warning_levels:
+            #
+            # # skip full level - checked earlier
+            # if level is 'full':
+            #     continue
+
+            # compare usage
             if usage >= thresholds[level]:
                 warning_level = level
                 break
 
         # compare with highest level
-        if warning_level == '':
-            warning_level = 'OK'
-        else:
+        if not warning_level == 'OK':
             # add this mount to the log
             if level not in hits:
                 hits[level] = {}
@@ -425,14 +458,8 @@ for service, service_config in sorted(session['services'].items()):
             # pretty output per line
             line=''
             usage='{}%'.format(usage)
-            column_fields = [service, usage, size, mount]
 
-            i=0
-            for field in column_fields:
-                field=str(field).strip()
-                seperator = (column_widths[i] - len(field)) * ' '
-                line = line + field + seperator
-                i+=1
+            line = line + make_pretty_output(service, usage, size, mount)
 
             if service not in hits[level]:
                 hits[level][service] = []
@@ -489,10 +516,6 @@ services_log_file = open(services_log_file_path, 'a')
 for status in statuses:
     services_tmp_file.write(status)
     print(status, end='')
-#
-# file = open(services_tmp_file, "r")
-# for line in file:
-#     print(line, end='')
 
 # log warnings
 if len(hits):
@@ -648,32 +671,20 @@ for level in warning_levels:
                     message = message + ' ' + message_mark
                 report[level].append(message)
 
-# failed connections
-report['failed'] = []
-if len(failed_connections):
-    for f in failed_connections:
-        report['failed'].append(f.split(';')[3].rstrip("\n"))
-
-# ignored mounts
-report['ignored'] = []
-if len(ignored_mounts):
-    for f in ignored_mounts:
-        report['ignored'].append(f.split(';')[3])
-
-# unknown mounts
-report['unknown'] = []
-if len(unknown_mounts):
-    for f in unknown_mounts:
-        report['unknown'].append(f)
+# gather the data and add to the report
+for category, data in categories.items():
+    report[category] = []
+    if len(categories[category]):
+        for f in categories[category]:
+            report[category].append(f.split(';')[3].rstrip("\n"))
 
 print()
 print('%%%%%% {} %%%%%%'.format(verify_type.upper()))
 print()
 
 types = warning_levels.copy()
-types.append('failed')
-types.append('ignored')
-types.append('unknown')
+for type in categories.keys():
+    types.append(type)
 
 # issues to be reported
 reported_issues = False
@@ -685,7 +696,7 @@ for type in types:
     if len(report[type]) is 0:
         continue
 
-    print('%%% {} ({}) %%%'.format(type, len(report[type])))
+    print('+++ {} ({}) +++'.format(type.upper(), len(report[type])))
     # sort
     report[type] = sorted(report[type])
     # iterate services
