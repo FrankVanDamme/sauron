@@ -83,7 +83,7 @@ parser.add_argument('-i', '--inode', help='check inode use, not disk', required=
 parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
 parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
-parser.add_argument('-w', '--waste', help='Wasted space percentage', required=False)
+parser.add_argument('-q', '--query', help='Query', required=False)
 # parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
 # parser.add_argument('-t', '--tag', help='tag, e.g. server name', required=False, default=False)
 args = parser.parse_args()
@@ -105,18 +105,19 @@ else:
     monkey = False
 
 ####################################
-# WAISTE
+# QUERY
 ####################################
-if args.waste:
-    if args.waste.isdigit() == False:
-        print('Abort! Waste not a number: {}!'.format(args.waste))
+if args.query:
+
+    if not re.search('^[<>]=?[0-9]{1,3}[%]$', args.query) and not re.search('^[!=]=?[0-9]{1,3}[%]$', args.query):
+        print('Query must match a comparison operator! For example: <=50%')
         exit(1)
-    waste_value = int(args.waste)
-    if waste_value > 100 or waste_value < 0:
-        print('Abort! Waste not a valid percentage: {}!'.format(args.waste))
-        exit(1)
-    else:
-        waste = args.waste
+
+    query = {}
+
+    query['operator'] = re.findall('^[^0-9]+', args.query)[0]
+
+    query['value'] = int(re.findall('[0-9]+', args.query)[0])
 
 ####################################
 # VERIFY TYPE
@@ -201,7 +202,6 @@ print()
 # FUNCTIONS
 ####################################
 
-
 # notifications for the desktop
 def desktop_notify(messages):
 
@@ -263,7 +263,7 @@ services_tmp_file_path = os.path.join(tmp_dir, app_nickname + '.' + session['has
 services_log_file_path = os.path.join(log_dir, app_nickname + '.' + date_stamp + '.services.log')
 
 categories = {}
-for type in ['ignored', 'unknown', 'failed', 'waste']:
+for type in ['ignored', 'unknown', 'failed', 'query']:
     categories[type] = []
 
 # create the progress bar
@@ -423,26 +423,20 @@ for service, service_config in sorted(session['services'].items()):
                     if level in service_config['thresholds'][mount]:
                         thresholds[level] = service_config['thresholds'][mount][level]
 
-        # get waste
-        if args.waste:
-            if usage <= waste_value:
-                line = '{};{};ignored;'.format(datetime_stamp, session['id'])
+        # get query
+        if args.query:
+
+            comparison = str(usage) + ' ' + query['operator'] + ' ' + str(query['value'])
+
+            if eval(comparison):
+                line = '{};{};query;'.format(datetime_stamp, session['id'])
                 line = line + make_pretty_output(service, '{}%'.format(usage), size, mount)
-                categories['waste'].append(line)
+                categories['query'].append(line)
 
         # set default to OK
         warning_level = 'OK'
 
-        # get full disk usage
-        # if usage == 1:
-        #     warning_level = 'full'
-        # else:
-
         for level in warning_levels:
-            #
-            # # skip full level - checked earlier
-            # if level is 'full':
-            #     continue
 
             # compare usage
             if usage >= thresholds[level]:
@@ -696,7 +690,12 @@ for type in types:
     if len(report[type]) is 0:
         continue
 
-    print('+++ {} ({}) +++'.format(type.upper(), len(report[type])))
+    title = type.upper()
+
+    if type == 'query':
+        title = title + ' ' + args.query
+
+    print('+++ {} ({}) +++'.format(title, len(report[type])))
     # sort
     report[type] = sorted(report[type])
     # iterate services
