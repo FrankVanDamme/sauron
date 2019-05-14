@@ -84,6 +84,7 @@ parser.add_argument('-d', '--debugmode', help='debug mode', required=False, defa
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
 parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
 parser.add_argument('-q', '--query', help='Query', required=False)
+parser.add_argument('--quiet', help='Do not send e-mails', required=False, default=False, action='store_true')
 # parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
 # parser.add_argument('-t', '--tag', help='tag, e.g. server name', required=False, default=False)
 args = parser.parse_args()
@@ -621,9 +622,15 @@ if len(changed_services) == 0:
 # COMPILE LIST OF EMAIL RECIPIENTS
 ####################################
 notify_email = False
-if session['config']['email']['enabled']:
-    if len(changed_services) != 0:
-        notify_email = True
+
+# allow a quiet cli run
+if args.quiet:
+    print('Quiet mode is set...')
+else:
+    if session['config']['email']['enabled']:
+        print('E-mail enabled in config...')
+        if len(changed_services) != 0:
+            notify_email = True
 
 changed_service_recipients = []
 # check all services per recipient for changes
@@ -709,8 +716,7 @@ if reported_issues is False:
 
 # send messages
 if notify_email:
-    print()
-
+    print('Send notifications...')
     # no recipients
     if len(changed_service_recipients) == 0:
         print('No email recipients found...')
@@ -853,6 +859,8 @@ if notify_email:
     if len(mail_errors):
         print('Sending of mails failed for recipients: {}'.format(', '.join(mail_errors)))
         exit(1)
+else:
+    print('Not sending notifications...')
 
 print()
 print('Bye...')
