@@ -651,7 +651,7 @@ if debugmode:
 
 # log mails - purely for debugging - /tmp used
 mail_log_file_path = os.path.join('/tmp', app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
-mail_log_file = open(mail_log_file_path, 'a')
+# mail_log_file = open(mail_log_file_path, 'a')
 
 # pretty output
 report = {}
@@ -717,6 +717,10 @@ if reported_issues is False:
 # send messages
 if notify_email:
     print('Send notifications...')
+
+    # open the mail log file 
+    mail_log_file = open(mail_log_file_path, 'a')
+
     # no recipients
     if len(changed_service_recipients) == 0:
         print('No email recipients found...')
