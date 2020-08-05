@@ -649,10 +649,6 @@ if debugmode:
     print('===> Notify following recipients...')
     print(changed_service_recipients)
 
-# log mails - purely for debugging - /tmp used
-mail_log_file_path = os.path.join('/tmp', app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
-# mail_log_file = open(mail_log_file_path, 'a')
-
 # pretty output
 report = {}
 
@@ -718,7 +714,9 @@ if reported_issues is False:
 if notify_email:
     print('Send notifications...')
 
-    # open the mail log file 
+    # log mails - purely for debugging - /tmp used
+    mail_log_file_path = os.path.join('/tmp', app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
+    # open the mail log file
     mail_log_file = open(mail_log_file_path, 'a')
 
     # no recipients
