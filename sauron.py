@@ -55,7 +55,7 @@ os.chdir(dname)
 ####################################
 # MAIN VARIABLES
 ####################################
-app_version = "2.0"
+app_version = "2.1"
 app_name = "sauron"
 app_nickname = app_name + app_version.split('.')[0]
 
@@ -90,24 +90,23 @@ parser.add_argument('--quiet', help='Do not send e-mails', required=False, defau
 args = parser.parse_args()
 
 ####################################
-# DEBUGMODE
+# DEBUGGING
 ####################################
 if args.debugmode:
     debugmode = True
 else:
     debugmode = False
 
-####################################
-# MONKEY
-####################################
+# this mode is purely for debugging purposes
 if args.monkey:
     monkey = True
 else:
     monkey = False
 
 ####################################
-# QUERY
+# SET THE QUERY PARAMS
 ####################################
+# we can do a query on the cli, e.g. which mounts larger than X percent
 if args.query:
 
     if not re.search('^[<>]=?[0-9]{1,3}[%]$', args.query) and not re.search('^[!=]=?[0-9]{1,3}[%]$', args.query):
@@ -121,8 +120,9 @@ if args.query:
     query['value'] = int(re.findall('[0-9]+', args.query)[0])
 
 ####################################
-# VERIFY TYPE
+# VERIFY TYPE: INODE vs DISK SPACE
 ####################################
+# we can also measure inode usage rather than disk usage
 if args.inode:
     inode = True
     verify_type = 'inode usage'
@@ -131,36 +131,30 @@ else:
     verify_type = 'disk space'
 
 ####################################
-# CHECK LOG FILE
-####################################
-for services_log_file_path in [args.configfile, args.servicesfile]:
-    if not os.path.isfile(services_log_file_path) and not os.path.islink(services_log_file_path):
-        print('Abort! Cannot access {}!'.format(services_log_file_path))
-        exit(1)
-
-####################################
-# CONFIGURATION
+# CONFIGURATION VALIDATION
 ####################################
 cli_params = {}
 cli_params['services'] = args.servicesfile
 cli_params['config'] = args.configfile
 
 for type, file_path in cli_params.items():
-    if not os.path.isfile(file_path):
-        print('Abort! Cannot access {}!'.format(file_path))
+    # check if files provided on the cli exist
+    if not os.path.isfile(file_path) and not os.path.islink(file_path):
+        print('Abort! Cannot access {}! Does the file exist?'.format(file_path))
         exit(1)
 
+    # check if files provided on the cli are not empty
     if not os.stat(file_path).st_size > 0:
         print('Abort! Empty file: {}!'.format(file_path))
         exit(1)
 
-
+    # check if file is json or yaml, if so, load it
     with open(file_path) as file:
         if re.search('.+\.json$', file_path):
             session[type] = json.load(file)
         elif re.search('.+\.ya?ml$', file_path):
             try:
-                session[type] = yaml.load(file)
+                session[type] = yaml.load(file, Loader=yaml.SafeLoader)
             except yaml.YAMLError as exc:
                 if hasattr(exc, 'problem_mark'):
                     mark = exc.problem_mark
@@ -177,16 +171,16 @@ for type, file_path in cli_params.items():
         cli_config_tmp[k] = session[type][k]
     session[type] = cli_config_tmp
 
-####################################
-# VALIDATE APP CONFIG
-####################################
+# check if log and tmp directories are configured properly
 for type in ['log', 'tmp']:
     try:
+        # use expanduser to deal with a tilda
         dir = os.path.expanduser(session['config']["dirs"][type])
     except:
         print('Abort! Directive dir:{} not set??'.format(type))
         exit(1)
-    # use expanduser to deal with a tilda
+
+    # check is the dir exists
     if os.path.isdir(dir) != True:
         print("Abort! {} dir {} not found!".format(type, dir))
         exit(1)
@@ -202,7 +196,6 @@ print()
 ####################################
 # FUNCTIONS
 ####################################
-
 # notifications for the desktop
 def desktop_notify(messages):
 
@@ -245,24 +238,27 @@ connectivity_checked = False
 # write status in tmp file
 statuses = []
 
-# actual list of warnings
+# actual list of hits/warnings
 hits = {}
 
 # setup warning levels
 warning_levels = ['full', 'critical', 'warning', 'notice', 'info']
 
+# the highest hit level (subject of mail)
 hits_level_max = ''
 
+# add weights to the levels so we can determine the max value
 warning_level_weights = {}
 w = 0
 for level in warning_levels:
     warning_level_weights[level] = w
     w -= 1
 
-# file paths
+# tmp and log file paths
 services_tmp_file_path = os.path.join(tmp_dir, app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.services.tmp')
 services_log_file_path = os.path.join(log_dir, app_nickname + '.' + date_stamp + '.services.log')
 
+# mail body categories
 categories = {}
 for type in ['ignored', 'unknown', 'failed', 'query']:
     categories[type] = []
@@ -274,10 +270,10 @@ bar = Bar('Scanning...', max=number_of_services)
 print('Check {} for {} services...'.format(verify_type, len(session['services'].items())))
 print()
 
-# list of services per recipient
+# list of services per mail recipient
 configured_services_per_recipient = {}
 
-# request the urls
+# do the request for the urls
 for service, service_config in sorted(session['services'].items()):
 
     if debugmode:
@@ -297,6 +293,7 @@ for service, service_config in sorted(session['services'].items()):
 
     while i < max_ssh_retry:
 
+        # do the command over ssh
         ssh = subprocess.Popen(["ssh", '-o BatchMode=yes', '-o ConnectTimeout='+timeout, "%s" % service, COMMAND], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output = ssh.stdout.readlines()
 
@@ -401,7 +398,7 @@ for service, service_config in sorted(session['services'].items()):
         for level in warning_levels:
 
             # skip full
-            if level is 'full':
+            if level == 'full':
                 thresholds[level] = 100
             # global defaults
             elif not level in session['config']['thresholds']['default']:
@@ -533,9 +530,9 @@ services_log_file.close()
 print()
 # print final status
 if len(hits) == 0:
-    global_status = 'OK!'
+    global_status = 'OK'
 else:
-    global_status = 'NOT OK'
+    global_status = 'NOK'
     print('MAX WARNING LEVEL: {}'.format(hits_level_max.upper()))
 
 print('SERVICES GLOBAL STATUS: {}!'.format(global_status, hits_level_max.upper()))
@@ -556,7 +553,7 @@ if debugmode:
     print()
     print('===> Tmp files...')
     for i in service_tmp_files:
-        print(i)
+        print(os.path.join(tmp_dir, i))
 
 service_tmp_files.sort(reverse=True)
 
@@ -572,19 +569,23 @@ while i < len(service_tmp_files):
 
 hashes = []
 changed_services = {}
-# script is ran for the first time (or after reboot)
-if len(service_tmp_files) == 1:
-    print('No old runs detected???')
-else:
-    ####################################
-    # COMPARE THE STATUSES
-    # ####################################
-    # store the statuses
-    service_status_log = {}
-    i = 0
-    for run in ['new', 'old']:
+service_status_log = {}
+####################################
+# COMPARE THE STATUSES
+# ####################################
+# store the statuses
+i = 0
+for run in ['new', 'old']:
+
+    # there are no old runs if running for the first time
+    if len(service_tmp_files) == 1 and run == 'old':
+        print('No old runs detected...')
+        service_status_log['old'] = {}
+
+    else:
 
         service_log_file_path = os.path.join(tmp_dir, service_tmp_files[i])
+
         # open the files
         service_log_file_handle = open(service_log_file_path, 'r')
 
@@ -604,19 +605,19 @@ else:
             service_status_log[run][service] = status
             ii += 1
 
-        i += 1
+    i += 1
 
-    for service, new_status in service_status_log['new'].items():
-        # do not compare a new service
-        if not service in service_status_log['old']:
-            changed_services[service] = new_status
-            print('New service detected... {}'.format(service))
-        elif not service_status_log['new'][service] == service_status_log['old'][service]:
-            changed_services[service] = new_status
-            print('Change in service detected... {}'.format(service))
+for service, new_status in service_status_log['new'].items():
+    # do not compare a new service
+    if not service in service_status_log['old']:
+        changed_services[service] = new_status
+        print('New service detected... {}'.format(service))
+    elif not service_status_log['new'][service] == service_status_log['old'][service]:
+        changed_services[service] = new_status
+        print('Change in service detected... {}'.format(service))
 
 if len(changed_services) == 0:
-    print('No changes, no notifications...')
+    print('No changes detected, no notifications...')
 
 ####################################
 # COMPILE LIST OF EMAIL RECIPIENTS
@@ -629,7 +630,8 @@ if args.quiet:
 else:
     if session['config']['email']['enabled']:
         print('E-mail enabled in config...')
-        if len(changed_services) != 0:
+        if len(changed_services) != 0 and global_status != 'OK':
+            print(global_status)
             notify_email = True
 
 changed_service_recipients = []
@@ -690,7 +692,7 @@ for type in types:
     if type not in report:
         continue
 
-    if len(report[type]) is 0:
+    if len(report[type]) == 0:
         continue
 
     title = type.upper()
@@ -708,7 +710,7 @@ for type in types:
     print()
 
 if reported_issues is False:
-    print('No issues reported.')
+    print('No issues reported, status OK.')
 
 # send messages
 if notify_email:
