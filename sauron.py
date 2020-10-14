@@ -658,9 +658,6 @@ for service in new_services:
             if not service_status_log['new'][service][mount] == service_status_log['old'][service][mount]:
                 changed_services[service] = True
                 print('Change in service detected... {}'.format(service))
-print()
-print('___________________________ Notifications ___________________________')
-print()
 
 if len(changed_services) == 0:
     print('No changes detected, no notifications...')
@@ -762,6 +759,10 @@ for type in types:
         reported_issues = True
         print(b)
     print()
+
+print()
+print('___________________________ Notifications ___________________________')
+print()
 
 if reported_issues is False:
     print('No issues reported, status OK.')
