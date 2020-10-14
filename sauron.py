@@ -552,10 +552,10 @@ print()
 if len(hits) == 0:
     global_status = 'OK'
 else:
-    global_status = 'NOK'
-    print('MAX WARNING LEVEL: {}'.format(hits_level_max.upper()))
+    global_status = 'NOT OK'
+    print('Max Warning Level: {}'.format(hits_level_max.upper()))
 
-print('SERVICES GLOBAL STATUS: {}!'.format(global_status, hits_level_max.upper()))
+print('Services Global Status: {}!'.format(global_status, hits_level_max.upper()))
 
 ####################################
 # STORE STATUSES
@@ -660,13 +660,7 @@ for service in new_services:
                 print('Change in service detected... {}'.format(service))
 
 if len(changed_services) == 0:
-    print('No changes detected, no notifications...')
-else:
-    print()
-    print('Changed services:')
-    for service in changed_services:
-        print('- ' + service)
-    print()
+    print('No changes detected, no notifications required...')
 
 ####################################
 # COMPILE LIST OF EMAIL RECIPIENTS
