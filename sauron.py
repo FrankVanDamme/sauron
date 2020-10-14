@@ -76,6 +76,14 @@ datetime_stamp = str(datetime.datetime.now().strftime(format))
 ####################################
 # PARSE ARGUMENTS
 ####################################
+# check version
+if sys.argv[1]:
+    if sys.argv[1] == '-v' or sys.argv[1] == '--version':
+        # os.system('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;')
+        hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
+        print('{}.{}'.format(app_version, hash))
+        exit()
+
 parser = argparse.ArgumentParser(description=app_name + app_version)
 parser.add_argument('-c', '--configfile', help='Config json or yaml file', required=True, default=os.path.join(session['dir'], 'config/default.config.yaml'))
 # flag without arguments
@@ -84,6 +92,7 @@ parser.add_argument('-i', '--inode', help='check inode use, not disk', required=
 parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
 parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
+parser.add_argument('-v', '--version', help='version', required=False, action='store_true')
 parser.add_argument('-q', '--query', help='Query', required=False)
 parser.add_argument('--quiet', help='Do not send e-mails', required=False, default=False, action='store_true')
 # parser.add_argument('-v', '--verbose', help='verbose', required=False, default=False, action='store_true')
@@ -211,8 +220,6 @@ def pretty_title(string, type = 'h2'):
         width = 60
 
     return string.center(width, symbol)
-
-
 
 # notifications for the desktop
 def desktop_notify(messages):
