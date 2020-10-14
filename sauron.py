@@ -197,6 +197,23 @@ print()
 ####################################
 # FUNCTIONS
 ####################################
+def pretty_title(string, type = 'h2'):
+    string = ' {} '.format(string)
+
+    if type == 'h1':
+        symbol = '$'
+        width = 80
+    elif type == 'h2':
+        symbol = '_'
+        width = 80
+    elif type == 'h3':
+        symbol = '_'
+        width = 60
+
+    return string.center(width, symbol)
+
+
+
 # notifications for the desktop
 def desktop_notify(messages):
 
@@ -330,15 +347,16 @@ for service, service_config in sorted(session['services'].items()):
 
     if debugmode:
         print()
-        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ {} $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'.format(service))
+        print(pretty_title(service, 'h1'))
+        print()
         print(result)
         print()
 
-        print('___________________________ Service Config ___________________________')
+        print(pretty_title('Service Config'))
         print(service_config)
         print()
 
-        print('___________________________ Session Config ___________________________')
+        print(pretty_title('Session Config'))
         print(session['config']['thresholds'])
         print()
 
@@ -346,7 +364,8 @@ for service, service_config in sorted(session['services'].items()):
         pieces = line.split(' ')
         mount = pieces[5].strip()
         if debugmode:
-            print('____ Checking {} ____'.format(mount))
+            print(pretty_title(mount, 'h3'))
+            # print('Checking {}'.format(mount))
             print(line.rstrip())
 
         # ignored/unknown mounts
@@ -502,10 +521,11 @@ if not debugmode:
     bar.finish()
 
 print()
-print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ REPORT $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'.format(service))
+print(pretty_title('Report', 'h1'))
 print()
+
 if debugmode:
-    print('___________________________ Services per Recipient ___________________________')
+    print(pretty_title('Services per Recipient'))
     print(configured_services_per_recipient)
     print()
 
@@ -515,7 +535,7 @@ if debugmode:
 services_tmp_file = open(services_tmp_file_path, 'w')
 
 print()
-print('___________________________ Log ___________________________')
+print(pretty_title('Log'))
 print('Write log file... {}'.format(services_log_file_path))
 print()
 
@@ -545,7 +565,7 @@ services_log_file.close()
 # STATUS LOG FILE
 ####################################
 print()
-print('___________________________ Status ___________________________')
+print(pretty_title('Status'))
 print()
 # print final status
 if len(hits) == 0:
@@ -570,7 +590,7 @@ for file in tmp_files:
 
 if debugmode:
     print()
-    print('___________________________ Temporary Files ___________________________')
+    print(pretty_title('Temporary Files'))
     for i in service_tmp_files:
         print(os.path.join(tmp_dir, i))
 
@@ -635,7 +655,7 @@ for run in ['new', 'old']:
 
 if debugmode:
     print()
-    print('___________________________ Compare Status ___________________________')
+    print(pretty_title('Compare Status'))
     print()
     print('OLD Status:')
     print(service_status_log['old'])
@@ -690,9 +710,9 @@ for recipient, services in configured_services_per_recipient.items():
 
 if debugmode and len(changed_services) != 0:
     print()
-    print('____ Changed Services ____')
+    print(pretty_title('Changed Services', 'h3'))
     print(changed_services)
-    print('____ Notify Recipients ____')
+    print(pretty_title('Notify Recipients', 'h3'))
     print(changed_service_recipients)
 
 # pretty output
@@ -722,7 +742,7 @@ for category, data in categories.items():
             report[category].append(f.split(';')[3].rstrip("\n"))
 
 print()
-print('___________________________ {} Report ___________________________'.format(verify_type.capitalize()))
+print(pretty_title('{} Report '.format(verify_type.capitalize())))
 print()
 
 types = warning_levels.copy()
@@ -754,7 +774,7 @@ for type in types:
     print()
 
 print()
-print('___________________________ Notifications ___________________________')
+print(pretty_title('Notifications'))
 print()
 
 if reported_issues is False:
