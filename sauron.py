@@ -360,8 +360,7 @@ for service, service_config in sorted(session['services'].items()):
         else:
             try:
                 usage = int(pieces[4].strip('%'))
-            except:        # if args.force:
-        #     notify_email = True
+            except:
                 usage = 0
                 unknown_mount = True
 
@@ -506,7 +505,7 @@ print()
 print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ REPORT $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'.format(service))
 print()
 if debugmode:
-    print('___________________________ Services per Recipient___________________________')
+    print('___________________________ Services per Recipient ___________________________')
     print(configured_services_per_recipient)
     print()
 
@@ -675,7 +674,7 @@ else:
         # print('E-mail enabled in config...')
         if len(changed_services) != 0 and global_status != 'OK':
             notify_email = True
-        # if args.force:
+        # elif args.force:
         #     notify_email = True
 
 changed_service_recipients = []
