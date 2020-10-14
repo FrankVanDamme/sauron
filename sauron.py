@@ -79,6 +79,7 @@ datetime_stamp = str(datetime.datetime.now().strftime(format))
 parser = argparse.ArgumentParser(description=app_name + app_version)
 parser.add_argument('-c', '--configfile', help='Config json or yaml file', required=True, default=os.path.join(session['dir'], 'config/default.config.yaml'))
 # flag without arguments
+# parser.add_argument('-f', '--force', help='send a mail in any case', required=False, default=False, action='store_true')
 parser.add_argument('-i', '--inode', help='check inode use, not disk', required=False, default=False, action='store_true')
 parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
@@ -264,8 +265,9 @@ for type in ['ignored', 'unknown', 'failed', 'query']:
     categories[type] = []
 
 # create the progress bar
-number_of_services = len(session['services'].items())
-bar = Bar('Scanning...', max=number_of_services)
+if not debugmode:
+    number_of_services = len(session['services'].items())
+    bar = Bar('Scanning...', max=number_of_services)
 
 print('Check {} for {} services...'.format(verify_type, len(session['services'].items())))
 print()
@@ -276,8 +278,10 @@ configured_services_per_recipient = {}
 # do the request for the urls
 for service, service_config in sorted(session['services'].items()):
 
-    if debugmode:
-        print('+ + Connect to service {} + +'.format(service))
+    # if debugmode:
+    #     print()
+    #     print('+ + + + Connect to service {} + + + +'.format(service))
+    #     print()
 
     if inode:
         options = "-Phi"
@@ -315,7 +319,8 @@ for service, service_config in sorted(session['services'].items()):
         categories['failed'].append(line)
         services_log_file.write(line)
         services_log_file.close()
-        bar.next()
+        if not debugmode:
+            bar.next()
         continue
 
     # decode the result
@@ -325,19 +330,24 @@ for service, service_config in sorted(session['services'].items()):
 
     if debugmode:
         print()
-        print('======> {} <======'.format(service))
+        print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ {} $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'.format(service))
         print(result)
         print()
-        print('===> Service config:')
+
+        print('___________________________ Service Config ___________________________')
         print(service_config)
-        print('===> Session config:')
+        print()
+
+        print('___________________________ Session Config ___________________________')
         print(session['config']['thresholds'])
+        print()
 
     for line in result:
-        if debugmode:
-            print(line)
         pieces = line.split(' ')
         mount = pieces[5].strip()
+        if debugmode:
+            print('____ Checking {} ____'.format(mount))
+            print(line.rstrip())
 
         # ignored/unknown mounts
         ignored_mount = False
@@ -350,14 +360,16 @@ for service, service_config in sorted(session['services'].items()):
         else:
             try:
                 usage = int(pieces[4].strip('%'))
-            except:
+            except:        # if args.force:
+        #     notify_email = True
                 usage = 0
                 unknown_mount = True
 
             size = '{}/{}'.format(pieces[2], pieces[1])
 
         if debugmode:
-            print('=> Checking mount {}, usage: {}'.format(mount, usage))
+            print('mount: {} usage: {}'.format(mount, usage))
+            print()
 
         thresholds = {}
         ####################################
@@ -484,12 +496,17 @@ for service, service_config in sorted(session['services'].items()):
                         configured_services_per_recipient[recipient] = []
                     # add this service
                     configured_services_per_recipient[recipient].append(service)
-    bar.next()
+    if not debugmode:
+        bar.next()
 
-bar.finish()
+if not debugmode:
+    bar.finish()
 
+print()
+print('$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ REPORT $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$'.format(service))
+print()
 if debugmode:
-    print('===> Services per recipient...')
+    print('___________________________ Services per Recipient___________________________')
     print(configured_services_per_recipient)
     print()
 
@@ -499,7 +516,8 @@ if debugmode:
 services_tmp_file = open(services_tmp_file_path, 'w')
 
 print()
-print('===> Write log file... {}'.format(services_log_file_path))
+print('___________________________ Log ___________________________')
+print('Write log file... {}'.format(services_log_file_path))
 print()
 
 services_log_file = open(services_log_file_path, 'a')
@@ -528,6 +546,8 @@ services_log_file.close()
 # STATUS LOG FILE
 ####################################
 print()
+print('___________________________ Status ___________________________')
+print()
 # print final status
 if len(hits) == 0:
     global_status = 'OK'
@@ -551,7 +571,7 @@ for file in tmp_files:
 
 if debugmode:
     print()
-    print('===> Tmp files...')
+    print('___________________________ Temporary Files ___________________________')
     for i in service_tmp_files:
         print(os.path.join(tmp_dir, i))
 
@@ -595,29 +615,61 @@ for run in ['new', 'old']:
         # store the contents of the lists in a associative dictionary
         service_status_log[run] = {}
 
+
         ii = 0
         while ii < len(service_log_lines):
             # new services
             line = service_log_lines[ii].strip()
+            # print(line)
             p = line.split(';')
             service = p[0]
+            mount = p[1]
             status = p[2]
-            service_status_log[run][service] = status
+
+            if service not in  service_status_log[run].keys():
+                service_status_log[run][service] = {}
+
+            service_status_log[run][service][mount] = status
             ii += 1
 
     i += 1
 
-for service, new_status in service_status_log['new'].items():
+if debugmode:
+    print()
+    print('___________________________ Compare Status ___________________________')
+    print()
+    print('OLD Status:')
+    print(service_status_log['old'])
+    print()
+    print('NEW Status:')
+    print(service_status_log['new'])
+    print()
+
+old_services = list(service_status_log['old'].keys())
+new_services = list(service_status_log['new'].keys())
+
+for service in new_services:
     # do not compare a new service
-    if not service in service_status_log['old']:
-        changed_services[service] = new_status
+    if not service in old_services:
+        changed_services[service] = True
         print('New service detected... {}'.format(service))
-    elif not service_status_log['new'][service] == service_status_log['old'][service]:
-        changed_services[service] = new_status
-        print('Change in service detected... {}'.format(service))
+    else:
+        for mount, new_status in service_status_log['new'][service].items():
+            if not service_status_log['new'][service][mount] == service_status_log['old'][service][mount]:
+                changed_services[service] = True
+                print('Change in service detected... {}'.format(service))
+print()
+print('___________________________ Notifications ___________________________')
+print()
 
 if len(changed_services) == 0:
     print('No changes detected, no notifications...')
+else:
+    print()
+    print('Changed services:')
+    for service in changed_services:
+        print('- ' + service)
+    print()
 
 ####################################
 # COMPILE LIST OF EMAIL RECIPIENTS
@@ -629,10 +681,11 @@ if args.quiet:
     print('Quiet mode is set...')
 else:
     if session['config']['email']['enabled']:
-        print('E-mail enabled in config...')
+        # print('E-mail enabled in config...')
         if len(changed_services) != 0 and global_status != 'OK':
-            print(global_status)
             notify_email = True
+        # if args.force:
+        #     notify_email = True
 
 changed_service_recipients = []
 # check all services per recipient for changes
@@ -645,10 +698,11 @@ for recipient, services in configured_services_per_recipient.items():
                 changed_service_recipients.append(recipient)
                 break
 
-if debugmode:
-    print('===> Changed services...')
+if debugmode and len(changed_services) != 0:
+    print()
+    print('____ Changed Services ____')
     print(changed_services)
-    print('===> Notify following recipients...')
+    print('____ Notify Recipients ____')
     print(changed_service_recipients)
 
 # pretty output
@@ -678,7 +732,7 @@ for category, data in categories.items():
             report[category].append(f.split(';')[3].rstrip("\n"))
 
 print()
-print('%%%%%% {} %%%%%%'.format(verify_type.upper()))
+print('___________________________ {} Report ___________________________'.format(verify_type.capitalize()))
 print()
 
 types = warning_levels.copy()
