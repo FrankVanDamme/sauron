@@ -58,6 +58,8 @@ os.chdir(dname)
 app_version = "2.1"
 app_name = "sauron"
 app_nickname = app_name + app_version.split('.')[0]
+git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
+app_full_version = '{}.{}'.format(app_version, git_hash)
 
 session = {}
 session['dir'] = os.path.dirname(__file__)
@@ -79,9 +81,7 @@ datetime_stamp = str(datetime.datetime.now().strftime(format))
 # check version
 if sys.argv[1]:
     if sys.argv[1] == '-v' or sys.argv[1] == '--version':
-        # os.system('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;')
-        hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
-        print('{}.{}'.format(app_version, hash))
+        print(app_full_version)
         exit()
 
 parser = argparse.ArgumentParser(description=app_name + app_version)
@@ -200,7 +200,7 @@ log_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["log"]))
 tmp_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["tmp"]))
 
 print()
-print('{} {} ID {}'.format(app_name, app_version, session['id']))
+print('{} {} ID {}'.format(app_name, app_full_version, session['id']))
 print()
 
 ####################################
