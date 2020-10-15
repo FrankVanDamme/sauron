@@ -56,16 +56,31 @@ os.chdir(dname)
 # MAIN VARIABLES
 ####################################
 app_version = "2.3"
-app_name = "sauron"
+app_name = "Sauron"
 app_nickname = app_name + app_version.split('.')[0]
 git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
 app_full_version = '{}.{}'.format(app_version, git_hash)
 
+####################################
+# SESSION HASH
+####################################
 session = {}
 session['dir'] = os.path.dirname(__file__)
 session['id'] = str(uuid.uuid4())
-session['hash'] = hashlib.md5('.'.join(sys.argv[1:]).encode('utf-8')).hexdigest()
 
+argument_list_hash = sys.argv[1:]
+# do not hash debugmode
+hash_blacklist = ['-d', '--debug']
+
+for option in hash_blacklist:
+    if option in argument_list_hash:
+        argument_list_hash.remove(option) # remove these options for the hash
+
+session['hash'] = hashlib.md5('.'.join(argument_list_hash).encode('utf-8')).hexdigest()
+
+####################################
+# OPTIONS
+####################################
 max_ssh_retry = 3
 
 ####################################
@@ -107,7 +122,7 @@ parser.add_argument('-c', '--configfile', help='Config json or yaml file', requi
 # flag without arguments
 # parser.add_argument('-f', '--force', help='send a mail in any case', required=False, default=False, action='store_true')
 parser.add_argument('-i', '--inode', help='check inode use, not disk', required=False, default=False, action='store_true')
-parser.add_argument('-d', '--debugmode', help='debug mode', required=False, default=False, action='store_true')
+parser.add_argument('-d', '--debug', help='debug mode', required=False, default=False, action='store_true')
 parser.add_argument('-m', '--monkey', help='mokey mode', required=False, default=False, action='store_true')
 parser.add_argument('-s', '--servicesfile', help='Services json or yaml file', required=True)
 parser.add_argument('-v', '--version', help='version', required=False, action='store_true')
@@ -120,7 +135,7 @@ args = parser.parse_args()
 ####################################
 # DEBUGGING
 ####################################
-if args.debugmode:
+if args.debug:
     debugmode = True
 else:
     debugmode = False
@@ -218,9 +233,14 @@ log_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["log"]))
 tmp_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["tmp"]))
 
 print()
-print('{} {} ID {}'.format(app_name, app_full_version, session['id']))
+####################################
+# VERSION
+####################################
+print('Version: {} {}'.format(app_name, app_full_version))
+print('Hash/ID: {} {}'.format(session['hash'], session['id']))
 print()
 
+exit()
 ####################################
 # FUNCTIONS
 ####################################
@@ -691,12 +711,13 @@ if debugmode:
     print()
     print(pretty_title('Compare Status'))
     print()
-    print('OLD Status:')
-    print(service_status_log['old'])
-    print()
-    print('NEW Status:')
-    print(service_status_log['new'])
-    print()
+
+    for run in ['old', 'new']:
+        for server, mounts in service_status_log[run].items():
+            print(pretty_title(server + ' ({})'.format(run), 'h4'))
+            for key, value in mounts.items():
+                print(key.ljust(80, '.') + value)
+        print()
 
 old_services = list(service_status_log['old'].keys())
 new_services = list(service_status_log['new'].keys())
@@ -708,13 +729,22 @@ for service in new_services:
         print('New service detected... {}'.format(service))
     else:
         for mount, new_status in service_status_log['new'][service].items():
+            if mount not in service_status_log['old'][service].keys():
+                service_status_log['old'][service][mount] = ''
+
             if not service_status_log['new'][service][mount] == service_status_log['old'][service][mount]:
                 changed_services[service] = True
-                print('Change in service detected... {}'.format(service))
+
+    if service in changed_services.keys():
+        print('Change in service detected... {}'.format(service))
 
 if len(changed_services) == 0:
     print('No changes since last run...')
-
+else:
+    if debugmode:
+        print('Changed Services:')
+        print(changed_services)
+print()
 ####################################
 # COMPILE LIST OF EMAIL RECIPIENTS
 ####################################
@@ -768,7 +798,7 @@ for level in warning_levels:
             for message in hits[level][service]:
                 # mark changed service
                 if service in changed_services.keys():
-                    message = message + ' ' + message_mark
+                    message = message + ' ' + message_mark # 1
                 report[level].append(message)
 
 # gather the data and add to the report
