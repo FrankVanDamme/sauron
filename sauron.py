@@ -240,7 +240,6 @@ print('Version: {} {}'.format(app_name, app_full_version))
 print('Hash/ID: {} {}'.format(session['hash'], session['id']))
 print()
 
-exit()
 ####################################
 # FUNCTIONS
 ####################################
@@ -888,6 +887,10 @@ if notify_email:
 
         # add verify type to body
         body.append('Verifying {}...'.format(verify_type))
+        body.append('')
+
+        # print the titles
+        body.append(pretty_df('System', 'Size', 'Used', 'Use%', 'Mount'))
         body.append('')
 
         # filter relevant messages
