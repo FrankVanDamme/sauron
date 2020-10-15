@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 ####################################
-# LIBRARIES
+# IMPORT LIBRARIES
 ####################################
 # parse cli arguments
 import argparse
@@ -46,7 +46,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'lib'))
 from progress.bar import Bar
 
 ####################################
-# PATH
+# CHANG DIR
 ####################################
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -63,7 +63,7 @@ git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git 
 app_full_version = '{}.{}.{}'.format(app_version, git_commits, git_hash)
 
 ####################################
-# SESSION HASH
+# SESSION
 ####################################
 session = {}
 session['dir'] = os.path.dirname(__file__)
@@ -79,9 +79,7 @@ for option in hash_blacklist:
 
 session['hash'] = hashlib.md5('.'.join(argument_list_hash).encode('utf-8')).hexdigest()
 
-####################################
-# OPTIONS
-####################################
+# max tries to connect ssh
 max_ssh_retry = 3
 
 ####################################
@@ -95,7 +93,7 @@ datetime_stamp = str(datetime.datetime.now().strftime(format))
 start_time = time.time()
 
 ####################################
-# PARSE ARGUMENTS
+# PARSE CLI ARGUMENTS
 ####################################
 # check version
 if sys.argv[1]:
@@ -118,23 +116,6 @@ parser.add_argument('--quiet', help='Do not send e-mails', required=False, defau
 # parser.add_argument('-t', '--tag', help='tag, e.g. server name', required=False, default=False)
 args = parser.parse_args()
 
-####################################
-# DEBUGGING
-####################################
-if args.debug:
-    debugmode = True
-else:
-    debugmode = False
-
-# this mode is purely for debugging purposes
-if args.monkey:
-    monkey = True
-else:
-    monkey = False
-
-####################################
-# SET THE QUERY PARAMS
-####################################
 # we can do a query on the cli, e.g. which mounts larger than X percent
 if args.query:
 
@@ -148,9 +129,6 @@ if args.query:
 
     query['value'] = int(re.findall('[0-9]+', args.query)[0])
 
-####################################
-# VERIFY TYPE: INODE vs DISK SPACE
-####################################
 # we can also measure inode usage rather than disk usage
 if args.inode:
     inode = True
@@ -160,7 +138,21 @@ else:
     verify_type = 'disk space'
 
 ####################################
-# CONFIGURATION VALIDATION
+# DEBUGGING
+####################################
+monkey = False
+
+# debugmode
+if args.debug:
+    debugmode = True
+    # randomize values when in debug
+    if args.monkey:
+        monkey = True
+else:
+    debugmode = False
+
+####################################
+# PRE-FLIGHT CHECKS
 ####################################
 cli_params = {}
 cli_params['services'] = args.servicesfile
@@ -218,10 +210,8 @@ for type in ['log', 'tmp']:
 log_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["log"]))
 tmp_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["tmp"]))
 
-print()
-
 ####################################
-# LIB
+# FUNCTIONS
 ####################################
 def pretty_title(string, type = 'h2'):
     string = ' {} '.format(string)
@@ -266,13 +256,6 @@ def desktop_notify(messages):
         exit(1)
 
 ####################################
-# INITIATE APPLICATION
-####################################
-print('Version: {} {}'.format(app_name, app_full_version))
-print('Hash/ID: {} {}'.format(session['hash'], session['id']))
-print()
-
-####################################
 # CREATE LOCK FILE
 ####################################
 lockfile = "/tmp/{}.LOCK.{}".format(app_nickname, session['hash'])
@@ -286,6 +269,13 @@ else:
     file = open(lockfile, "w")
     # file.write("\n")
     file.close()
+
+####################################
+# KICK-OFF
+####################################
+print('Version: {} {}'.format(app_name, app_full_version))
+print('Hash/ID: {} {}'.format(session['hash'], session['id']))
+print()
 
 ####################################
 # ITERATE SERVICES
@@ -578,7 +568,7 @@ if debugmode:
     print()
 
 ####################################
-# SERVICES TMP AND LOG FILES
+# TMP AND LOG FILES
 ####################################
 services_tmp_file = open(services_tmp_file_path, 'w')
 
@@ -747,8 +737,9 @@ else:
         print('Changed Services:')
         print(changed_services)
 print()
+
 ####################################
-# COMPILE LIST OF EMAIL RECIPIENTS
+# COMPILE MAILING LIST
 ####################################
 notify_email = False
 
@@ -1029,7 +1020,7 @@ if os.path.isfile(lockfile):
     os.remove(lockfile)
 
 ####################################
-# TIME THE SCRIPT
+# WRAP UP
 ####################################
 sec = int(round(time.time()-start_time))
 script_time = datetime.timedelta(seconds =sec)
