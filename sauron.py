@@ -56,7 +56,7 @@ os.chdir(dname)
 # MAIN VARIABLES
 ####################################
 app_version = "2.3"
-app_name = "Sauron"
+app_name = "sauron"
 app_nickname = app_name + app_version.split('.')[0]
 git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
 app_full_version = '{}.{}'.format(app_version, git_hash)
