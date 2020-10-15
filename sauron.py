@@ -236,6 +236,9 @@ def pretty_title(string, type = 'h2'):
     elif type == 'h3':
         symbol = '_'
         width = 60
+    elif type == 'h4':
+        symbol = '_'
+        width = 40
 
     return string.center(width, symbol)
 
@@ -375,21 +378,25 @@ for service, service_config in sorted(session['services'].items()):
         print(pretty_title(service, 'h1'))
         print()
         print(result)
-        print()
 
-        print(pretty_title('Service Config'))
+        print()
+        print(pretty_title('Service Config', 'h3'))
+        print()
         print(service_config)
-        print()
 
-        print(pretty_title('Session Config'))
-        print(session['config']['thresholds'])
         print()
+        print(pretty_title('Session Config', 'h3'))
+        print()
+        print(session['config']['thresholds'])
 
     for line in result:
         pieces = line.split(' ')
         mount = pieces[5].strip()
         if debugmode:
-            print(pretty_title(mount, 'h3'))
+            print()
+            print(pretty_title(mount, 'h4'))
+            print()
+
             # print('Checking {}'.format(mount))
             print(line.rstrip())
 
@@ -412,7 +419,6 @@ for service, service_config in sorted(session['services'].items()):
 
         if debugmode:
             print('mount: {} usage: {}'.format(mount, usage))
-            print()
 
         thresholds = {}
 
@@ -546,12 +552,14 @@ for service, service_config in sorted(session['services'].items()):
 if not debugmode:
     bar.finish()
 
-print()
-print(pretty_title('Report', 'h1'))
-print()
+# print()
+# print(pretty_title('Report', 'h1'))
+# print()
 
 if debugmode:
+    print()
     print(pretty_title('Services per Recipient'))
+    print()
     print(configured_services_per_recipient)
     print()
 
@@ -562,6 +570,7 @@ services_tmp_file = open(services_tmp_file_path, 'w')
 
 print()
 print(pretty_title('Log'))
+print()
 print('Write log file... {}'.format(services_log_file_path))
 print()
 
@@ -596,11 +605,12 @@ print()
 # print final status
 if len(hits) == 0:
     global_status = 'OK'
+    services_status = 'OK'
 else:
     global_status = 'NOT OK'
-    print('Max Warning Level: {}'.format(hits_level_max.upper()))
+    services_status = hits_level_max.upper()
 
-print('Services Global Status: {}!'.format(global_status, hits_level_max.upper()))
+print('******* SERVICES STATUS: {} *******'.format(services_status))
 
 ####################################
 # STORE STATUSES
@@ -617,6 +627,7 @@ for file in tmp_files:
 if debugmode:
     print()
     print(pretty_title('Temporary Files'))
+    print()
     for i in service_tmp_files:
         print(os.path.join(tmp_dir, i))
 
@@ -706,7 +717,7 @@ for service in new_services:
                 print('Change in service detected... {}'.format(service))
 
 if len(changed_services) == 0:
-    print('No changes detected, no notifications required...')
+    print('No changes since last run...')
 
 ####################################
 # COMPILE LIST OF EMAIL RECIPIENTS
@@ -738,8 +749,11 @@ for recipient, services in configured_services_per_recipient.items():
 if debugmode and len(changed_services) != 0:
     print()
     print(pretty_title('Changed Services', 'h3'))
+    print()
     print(changed_services)
+    print()
     print(pretty_title('Notify Recipients', 'h3'))
+    print()
     print(changed_service_recipients)
 
 # pretty output
