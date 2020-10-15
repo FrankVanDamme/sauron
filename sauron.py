@@ -53,16 +53,6 @@ dname = os.path.dirname(abspath)
 os.chdir(dname)
 
 ####################################
-# VERSION
-####################################
-app_version = "2.3"
-app_name = "sauron"
-app_nickname = app_name + app_version.split('.')[0]
-git_commits = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-list HEAD | wc -l 2>/dev/null;').read().rstrip()
-git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
-app_full_version = '{}.{}.{}'.format(app_version, git_commits, git_hash)
-
-####################################
 # SESSION
 ####################################
 session = {}
@@ -81,6 +71,19 @@ session['hash'] = hashlib.md5('.'.join(argument_list_hash).encode('utf-8')).hexd
 
 # max tries to connect ssh
 max_ssh_retry = 3
+
+####################################
+# VERSION
+####################################
+app_version = "2.3"
+app_name = "sauron"
+app_nickname = app_name + app_version.split('.')[0]
+git_commits = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-list HEAD | wc -l 2>/dev/null;').read().rstrip()
+git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
+app_full_version = '{}.{}.{}'.format(app_version, git_commits, git_hash)
+
+app_version_line = 'Version: {} {}'.format(app_name, app_full_version)
+app_hash_line = 'Hash/ID: {} {}'.format(session['hash'], session['id'])
 
 ####################################
 # DATE AND TIME
@@ -273,8 +276,8 @@ else:
 ####################################
 # KICK-OFF
 ####################################
-print('Version: {} {}'.format(app_name, app_full_version))
-print('Hash/ID: {} {}'.format(session['hash'], session['id']))
+print(app_version_line)
+print(app_hash_line)
 print()
 
 ####################################
@@ -741,6 +744,10 @@ print()
 ####################################
 # COMPILE MAILING LIST
 ####################################
+print()
+print(pretty_title('Notifications'))
+print()
+
 notify_email = False
 
 # allow a quiet cli run
@@ -751,19 +758,6 @@ else:
         # print('E-mail enabled in config...')
         if len(changed_services) != 0 and global_status != 'OK':
             notify_email = True
-        # elif args.force:
-        #     notify_email = True
-
-changed_service_recipients = []
-# check all services per recipient for changes
-for recipient, services in configured_services_per_recipient.items():
-    # check if changed
-    for service in services:
-        if service in changed_services:
-            # check if in dict
-            if not recipient in changed_service_recipients:
-                changed_service_recipients.append(recipient)
-                break
 
 if debugmode and len(changed_services) != 0:
     print()
@@ -841,10 +835,6 @@ for type in types:
         print(b)
     print()
 
-print()
-print(pretty_title('Notifications'))
-print()
-
 if reported_issues is False:
     print('No issues reported, status OK.')
 
@@ -856,6 +846,21 @@ if notify_email:
         print('Send notifications (e-mail)...')
 
     print()
+
+    changed_service_recipients = []
+    # check all services per recipent for changes
+    for recipient, services in configured_services_per_recipient.items():
+        # check if changed
+        for service in services:
+            if service in changed_services:
+                # check if in dict
+                if not recipient in changed_service_recipients:
+                    changed_service_recipients.append(recipient)
+                    break
+
+    if debugmode:
+        print(changed_service_recipients)
+        print()
 
     # log mails - purely for debugging - /tmp used
     mail_log_file_path = os.path.join('/tmp', app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
@@ -883,6 +888,10 @@ if notify_email:
             hits_per_recipient[level] = []
 
         body = []
+
+        body.append(app_version_line)
+        body.append(app_hash_line)
+        body.append('')
 
         # add verify type to body
         body.append('Verifying {}...'.format(verify_type))
@@ -972,8 +981,8 @@ if notify_email:
         for line in mails[recipient]['body']:
             message.append(line)
 
-        message.append('')
-        message.append('Run ID: {}'.format(session['id']))
+        # message.append('')
+        # message.append('Run ID: {}'.format(session['id']))
 
         if debugmode:
             print('------ MAIL {} ------'.format(i))
