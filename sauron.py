@@ -856,7 +856,12 @@ if reported_issues is False:
 
 # send messages
 if notify_email:
-    print('Send notifications...')
+    if debugmode:
+        print('Send notifcations (simulated)...')
+    else:
+        print('Send notifications (e-mail)...')
+
+    print()
 
     # log mails - purely for debugging - /tmp used
     mail_log_file_path = os.path.join('/tmp', app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
@@ -981,7 +986,7 @@ if notify_email:
             print(' --- ', end='')
             print("\n --- ".join(message))
             print('---')
-            print('Debugmode, skip sending mails...')
+
         else:
             try:
                 print('Sending mail to server {}... '.format(session['config']['email']['server']), end='')
