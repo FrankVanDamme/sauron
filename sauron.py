@@ -69,11 +69,29 @@ session['hash'] = hashlib.md5('.'.join(sys.argv[1:]).encode('utf-8')).hexdigest(
 max_ssh_retry = 3
 
 ####################################
+# CREATE LOCK FILE
+####################################
+lockfile = "/tmp/{}.LOCK.{}".format(app_nickname, session['hash'])
+
+# it exists, abort
+if os.path.isfile(lockfile):
+    print('Abort, lock file exists! {}'.format(lockfile))
+    exit(1)
+# create it
+else:
+    file = open(lockfile, "w")
+    # file.write("\n")
+    file.close()
+
+####################################
 # DATE AND TIME
 ####################################
 date_stamp = str(datetime.datetime.now().date())
 format = '%Y-%m-%d_%H%M%S'
 datetime_stamp = str(datetime.datetime.now().strftime(format))
+
+# time the script
+start_time = time.time()
 
 ####################################
 # PARSE ARGUMENTS
@@ -397,6 +415,7 @@ for service, service_config in sorted(session['services'].items()):
             print()
 
         thresholds = {}
+
         ####################################
         # CHECK CONFIG
         ####################################
@@ -616,9 +635,10 @@ while i < len(service_tmp_files):
 hashes = []
 changed_services = {}
 service_status_log = {}
+
 ####################################
 # COMPARE THE STATUSES
-# ####################################
+####################################
 # store the statuses
 i = 0
 for run in ['new', 'old']:
@@ -941,5 +961,20 @@ if notify_email:
 else:
     print('Not sending notifications...')
 
+print()
+
+####################################
+# REMOVE LOCK FILE
+####################################
+# remove the lock file
+if os.path.isfile(lockfile):
+    os.remove(lockfile)
+
+####################################
+# TIME THE SCRIPT
+####################################
+sec = int(round(time.time()-start_time))
+script_time = datetime.timedelta(seconds =sec)
+print('Script time:', script_time)
 print()
 print('Bye...')
