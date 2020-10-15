@@ -53,13 +53,14 @@ dname = os.path.dirname(abspath)
 os.chdir(dname)
 
 ####################################
-# MAIN VARIABLES
+# VERSION
 ####################################
 app_version = "2.3"
 app_name = "sauron"
 app_nickname = app_name + app_version.split('.')[0]
+git_commits = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-list HEAD | wc -l 2>/dev/null;').read().rstrip()
 git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
-app_full_version = '{}.{}'.format(app_version, git_hash)
+app_full_version = '{}.{}.{}'.format(app_version, git_commits, git_hash)
 
 ####################################
 # SESSION HASH
@@ -82,21 +83,6 @@ session['hash'] = hashlib.md5('.'.join(argument_list_hash).encode('utf-8')).hexd
 # OPTIONS
 ####################################
 max_ssh_retry = 3
-
-####################################
-# CREATE LOCK FILE
-####################################
-lockfile = "/tmp/{}.LOCK.{}".format(app_nickname, session['hash'])
-
-# it exists, abort
-if os.path.isfile(lockfile):
-    print('Abort, lock file exists! {}'.format(lockfile))
-    exit(1)
-# create it
-else:
-    file = open(lockfile, "w")
-    # file.write("\n")
-    file.close()
 
 ####################################
 # DATE AND TIME
@@ -233,15 +219,9 @@ log_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["log"]))
 tmp_dir = os.path.normpath(os.path.expanduser(session['config']["dirs"]["tmp"]))
 
 print()
-####################################
-# VERSION
-####################################
-print('Version: {} {}'.format(app_name, app_full_version))
-print('Hash/ID: {} {}'.format(session['hash'], session['id']))
-print()
 
 ####################################
-# FUNCTIONS
+# LIB
 ####################################
 def pretty_title(string, type = 'h2'):
     string = ' {} '.format(string)
@@ -284,6 +264,29 @@ def desktop_notify(messages):
         # the first one is usually the message.
         print('Could not notify desktop. Package python3-notify2 installed? {}'.format(e.args[1]))
         exit(1)
+
+####################################
+# INITIATE APPLICATION
+####################################
+print('Version: {} {}'.format(app_name, app_full_version))
+print('Hash/ID: {} {}'.format(session['hash'], session['id']))
+print()
+
+####################################
+# CREATE LOCK FILE
+####################################
+lockfile = "/tmp/{}.LOCK.{}".format(app_nickname, session['hash'])
+
+# it exists, abort
+if os.path.isfile(lockfile):
+    print('Abort, lock file exists! {}'.format(lockfile))
+    exit(1)
+# create it
+else:
+    file = open(lockfile, "w")
+    # file.write("\n")
+    file.close()
+
 ####################################
 # ITERATE SERVICES
 ####################################
