@@ -55,7 +55,7 @@ os.chdir(dname)
 ####################################
 # MAIN VARIABLES
 ####################################
-app_version = "2.1"
+app_version = "3.0"
 app_name = "sauron"
 app_nickname = app_name + app_version.split('.')[0]
 git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
@@ -242,6 +242,12 @@ def pretty_title(string, type = 'h2'):
 
     return string.center(width, symbol)
 
+# 'System', 'Size', 'Used', 'Use%', 'Mount'
+def pretty_df(service, size, used, used_percent, mount):
+
+    line =  (service.ljust(36) + size.ljust(6) + used.ljust(6) + used_percent.ljust(6) + mount)
+    return(line)
+
 # notifications for the desktop
 def desktop_notify(messages):
 
@@ -259,22 +265,6 @@ def desktop_notify(messages):
         # the first one is usually the message.
         print('Could not notify desktop. Package python3-notify2 installed? {}'.format(e.args[1]))
         exit(1)
-
-def make_pretty_output(service, usage, size, mount):
-
-    column_widths = [32, 8, 16, 32]
-
-    column_fields = [service, usage, size, mount]
-    i = 0
-    line=''
-    for field in column_fields:
-        field = str(field).strip()
-        seperator = (column_widths[i] - len(field)) * ' '
-        line = line + field + seperator
-        i += 1
-
-    return(line)
-
 ####################################
 # ITERATE SERVICES
 ####################################
@@ -415,7 +405,8 @@ for service, service_config in sorted(session['services'].items()):
                 usage = 0
                 unknown_mount = True
 
-            size = '{}/{}'.format(pieces[2], pieces[1])
+            size = pieces[1]
+            used = pieces[2]
 
         if debugmode:
             print('mount: {} usage: {}'.format(mount, usage))
@@ -441,9 +432,9 @@ for service, service_config in sorted(session['services'].items()):
 
                     # pretty output per line
                     line = '{};{};ignored;'.format(datetime_stamp, session['id'])
-                    usage = '{}%'.format(usage)
+                    used_percent = '{}%'.format(usage)
 
-                    line = line + make_pretty_output(service, usage, size, mount)
+                    line = line + pretty_df(service, size, used, used_percent, mount) # 0
 
                     categories['ignored'].append(line)
                     ignored_mount = True
@@ -490,7 +481,8 @@ for service, service_config in sorted(session['services'].items()):
 
             if eval(comparison):
                 line = '{};{};query;'.format(datetime_stamp, session['id'])
-                line = line + make_pretty_output(service, '{}%'.format(usage), size, mount)
+                used_percent = '{}%'.format(usage)
+                line = line + pretty_df(service, size, used, used_percent, mount) # 1
                 categories['query'].append(line)
 
         # set default to OK
@@ -511,9 +503,9 @@ for service, service_config in sorted(session['services'].items()):
 
             # pretty output per line
             line=''
-            usage='{}%'.format(usage)
+            used_percent='{}%'.format(usage)
 
-            line = line + make_pretty_output(service, usage, size, mount)
+            line = line + pretty_df(service, size, used, used_percent, mount) # 2
 
             if service not in hits[level]:
                 hits[level][service] = []
@@ -579,8 +571,13 @@ services_log_file = open(services_log_file_path, 'a')
 # store status
 for status in statuses:
     services_tmp_file.write(status)
-    print(status, end='')
-
+    # print nicely
+    # print(status, end='')
+    status_list = status.split(';')
+    # print(list)
+    # exit()
+    mount_index = status_list[0] + ':' + status_list[1]
+    print(mount_index.ljust(60, '.'), status_list[2], end = '')
 # log warnings
 if len(hits):
     # log file
@@ -605,13 +602,12 @@ print()
 # print final status
 if len(hits) == 0:
     global_status = 'OK'
-    services_status = 'OK'
+    global_status1 = 'OK'
 else:
     global_status = 'NOT OK'
-    services_status = hits_level_max.upper()
+    global_status1 = hits_level_max.upper()
 
-print('******* SERVICES STATUS: {} *******'.format(services_status))
-
+print('Global Status'.ljust(60, '.'), global_status1)
 ####################################
 # STORE STATUSES
 ####################################
@@ -783,7 +779,15 @@ for category, data in categories.items():
             report[category].append(f.split(';')[3].rstrip("\n"))
 
 print()
-print(pretty_title('{} Report '.format(verify_type.capitalize())))
+# do some magic to capitalize every word in a string
+print(pretty_title('{} Report '.format(" ".join([
+   word.capitalize()
+   for word in verify_type.split(" ")
+]))))
+print()
+
+output = pretty_df('System', 'Size', 'Used', 'Use%', 'Mount') # 3
+print(output)
 print()
 
 types = warning_levels.copy()
@@ -849,7 +853,6 @@ if notify_email:
         hits_per_recipient = {}
         for level in warning_levels:
             hits_per_recipient[level] = []
-
 
         body = []
 
