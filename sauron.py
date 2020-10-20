@@ -58,8 +58,6 @@ class App:
 
     name = 'sauron'
 
-    nickname = '' # will be set in class initiation
-
     version = '2.4'
 
     full_version = '' # will be set in class initiation
@@ -68,9 +66,7 @@ class App:
 
         self.PID = str(os.getpid())
 
-        self.nickname = self.name + self.version.split('.')[0]
-
-        self.lockfile = "/tmp/{}.{}.lock".format(self.nickname, session['hash'])
+        self.lockfile = "/tmp/{}.{}.lock".format(self.name, session['hash'])
 
         git_commits = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-list HEAD | wc -l 2>/dev/null;').read().rstrip()
         git_hash = os.popen('cd ' + os.path.dirname(os.path.abspath(__file__)) + '; git rev-parse --short HEAD 2>/dev/null;').read().rstrip()
@@ -215,7 +211,6 @@ App = App(session['hash'])
 
 app_version = App.version
 app_name = App.name
-app_nickname = App.nickname
 app_full_version = App.full_version
 
 app_version_line = 'Version: {} {}'.format(app_name, app_full_version)
@@ -381,8 +376,8 @@ for level in warning_levels:
     w -= 1
 
 # tmp and log file paths
-services_tmp_file_path = os.path.join(tmp_dir, app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.services.tmp')
-services_log_file_path = os.path.join(log_dir, app_nickname + '.' + date_stamp + '.services.log')
+services_tmp_file_path = os.path.join(tmp_dir, app_name + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.services.tmp')
+services_log_file_path = os.path.join(log_dir, app_name + '.' + date_stamp + '.services.log')
 
 # mail body categories
 categories = {}
@@ -705,7 +700,7 @@ tmp_files = os.listdir(tmp_dir)
 # add all the service tmp files to a list
 service_tmp_files = []
 for file in tmp_files:
-    if re.search(app_nickname + '.' + session['hash'] + '.+\.services\.tmp$', file):
+    if re.search(app_name + '.' + session['hash'] + '.+\.services\.tmp$', file):
         service_tmp_files.append(file)
 
 if debugmode:
@@ -936,7 +931,7 @@ if notify_email:
             print()
 
     # log mails - purely for debugging - /tmp used
-    mail_log_file_path = os.path.join('/tmp', app_nickname + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
+    mail_log_file_path = os.path.join('/tmp', app_name + '.' + session['hash'] + '.' + datetime_stamp + '.' + session['id'] + '.mail.log')
     # open the mail log file
     mail_log_file = open(mail_log_file_path, 'a')
 
@@ -1023,7 +1018,7 @@ if notify_email:
                 body.append('')
 
         hostname = socket.gethostname()
-        subject = app_nickname.upper() + ' @' + hostname + ' ' + status
+        subject = app_name.upper() + ' @' + hostname + ' ' + status
 
         mails[recipient] = {}
         mails[recipient]['subject'] = subject
@@ -1041,7 +1036,7 @@ if notify_email:
     # iterate all recipients
     for recipient in mails.keys():
 
-        sender = app_nickname + '@' + fqdn
+        sender = app_name + '@' + fqdn
 
         message = []
         message.append('From: <' + sender + '>')
