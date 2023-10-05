@@ -17,3 +17,5 @@ muppets2.domain:
   # override ignored mounts
   # leave empty to ignore none
   ignored: {}
+  fstype_ignored:
+    - btrfs

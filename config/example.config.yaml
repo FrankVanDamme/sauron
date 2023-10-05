@@ -31,3 +31,5 @@ thresholds:
   # set specific thresholds
   /:
     info: 50
+fstype_ignored:
+  - vfat

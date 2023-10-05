@@ -408,6 +408,41 @@ for service, service_config in sorted(session['services'].items()):
     else:
         options = "-Ph"
 
+
+    # build an array of blacklisted file system types
+    fstype_ignored = []
+
+    if 'fstype_ignored' in session['config']:
+        # add global config blacklist elements
+        fstype_ignored.extend(session['config']['fstype_ignored'])
+    if 'fstype_ignored' in service_config:
+        # add service config blacklist elements
+        fstype_ignored.extend(service_config['fstype_ignored'])
+
+    # filter doubles
+    fstype_ignored = list( dict.fromkeys(fstype_ignored) )
+
+    # Read OS supported file systems from /proc/filesystems
+    # Compile a list of file systems that are not blacklisted
+
+    pfs = open('/proc/filesystems', 'r')
+    os_filesystems = pfs.readlines()
+    pfs.close
+
+    check_filesystems = []
+
+    for fs in os_filesystems:
+        x = re.search(r"^nodev", fs)
+        if ( not x ):
+            fs=fs.strip()
+            if fs not in fstype_ignored:
+                check_filesystems.append( fs )
+
+    # Format fs type options for df
+
+    for fs in check_filesystems:
+        options = options + ' -t ' + fs
+
     # Ports are handled in ~/.ssh/config since we use OpenSSH
     COMMAND = "df " + options + " | grep -E '^/dev' | tr -s ' ' "
 
@@ -622,6 +657,7 @@ for service, service_config in sorted(session['services'].items()):
                         configured_services_per_recipient[recipient] = []
                     # add this service
                     configured_services_per_recipient[recipient].append(service)
+
     if not debugmode:
         bar.next()
 
