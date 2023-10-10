@@ -898,7 +898,7 @@ for category, data in categories.items():
     if len(categories[category]):
         if debugmode:
             print()
-            print( "Category: {}".format(category))
+            print( "Category: " + category)
             print()
         for f in categories[category]:  # why not data?
             try:
