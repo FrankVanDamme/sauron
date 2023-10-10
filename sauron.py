@@ -890,11 +890,21 @@ for level in warning_levels:
                 report[level].append(message)
 
 # gather the data and add to the report
+# categories:
+#   ignored: []
+#   unknown: []
 for category, data in categories.items():
     report[category] = []
     if len(categories[category]):
-        for f in categories[category]:
-            report[category].append(f.split(';')[3].rstrip("\n"))
+        if debugmode:
+            print()
+            print( format("Category: {}", category))
+            print()
+        for f in categories[category]:  # why not data?
+            try:
+                report[category].append(f.split(';')[3].rstrip("\n"))
+            except:
+                print(vars(f))
 
 print()
 # do some magic to capitalize every word in a string
