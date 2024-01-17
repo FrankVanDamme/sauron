@@ -404,10 +404,9 @@ for service, service_config in sorted(session['services'].items()):
     #     print()
 
     if inode:
-        options = "-Phi"
+        options = "-TPhi"
     else:
-        options = "-Ph"
-
+        options = "-TPh"
 
     # build an array of blacklisted file system types
     fstype_ignored = []
@@ -422,29 +421,12 @@ for service, service_config in sorted(session['services'].items()):
     # filter doubles
     fstype_ignored = list( dict.fromkeys(fstype_ignored) )
 
-    # Read OS supported file systems from /proc/filesystems
-    # Compile a list of file systems that are not blacklisted
-
-    pfs = open('/proc/filesystems', 'r')
-    os_filesystems = pfs.readlines()
-    pfs.close
-
-    check_filesystems = []
-
-    for fs in os_filesystems:
-        x = re.search(r"^nodev", fs)
-        if ( not x ):
-            fs=fs.strip()
-            if fs not in fstype_ignored:
-                check_filesystems.append( fs )
-
     # Format fs type options for df
 
-    for fs in check_filesystems:
-        options = options + ' -t ' + fs
-
     # Ports are handled in ~/.ssh/config since we use OpenSSH
-    COMMAND = "df " + options + " | grep -E '^/dev' | tr -s ' ' "
+    # Remotely, we loop over supported file systems via /proc/filesystems and
+    # add "-t <fs type>" to the command options for each of them
+    COMMAND = "df " + options + " `for fs in $(grep -v '^nodev' /proc/filesystems);  do o=\"$o -t $fs\"; done; echo $o`  | grep -E '^/dev' | tr -s ' ' "
 
     timeout = str(session['config']['ssh_timeout'])
 
@@ -501,7 +483,13 @@ for service, service_config in sorted(session['services'].items()):
 
     for line in result:
         pieces = line.split(' ')
-        mount = pieces[5].strip()
+        mount = pieces[6].strip()
+        fstype = pieces[1].strip()
+
+        # skip file systems with blacklisted type
+        if fstype in fstype_ignored:
+            continue
+
         if debugmode:
             print()
             print(pretty_title(mount, 'h4'))
@@ -520,13 +508,13 @@ for service, service_config in sorted(session['services'].items()):
             size = '-'
         else:
             try:
-                usage = int(pieces[4].strip('%'))
+                usage = int(pieces[5].strip('%'))
             except:
                 usage = 0
                 unknown_mount = True
 
-            size = pieces[1]
-            used = pieces[2]
+            size = pieces[2]
+            used = pieces[3]
 
         if debugmode:
             print('mount: {} usage: {}'.format(mount, usage))
